@@ -643,36 +643,34 @@ let filters = { tema: '', anio: '', vigente: '', search: '', anioDesde: '', anio
 // ── Clasificación de resoluciones por categoría ──
 var CATEGORIAS = [
   { id: '', label: 'Todas', icon: '📋' },
+  { id: 'resoluciones', label: 'Resoluciones', icon: '📄' },
   { id: 'circulares', label: 'Circulares', icon: '📨' },
   { id: 'codigo', label: 'Código Tributario', icon: '⚖️' },
-  { id: 'lrti', label: 'Ley Régimen Tributario', icon: '📜' },
-  { id: 'reglamento', label: 'Reglamento LRTI', icon: '📑' },
-  { id: 'resoluciones', label: 'Otras Resoluciones', icon: '📄' }
+  { id: 'leyes', label: 'Leyes', icon: '📜' },
+  { id: 'reglamentos', label: 'Reglamentos', icon: '📑' }
 ];
 
 function classifyResolucion(r) {
   var num = (r.numero || '').toUpperCase();
   var archivo = (r.archivo || '').toUpperCase();
-  var text = ((r.temas||[]).join(' ') + ' ' + (r.palabras_clave||'') + ' ' + (r.titulo||'')).toLowerCase();
 
-  // Circulares: prefijo DGECCGC en número o archivo
-  if (num.indexOf('DGECCGC') > -1 || archivo.indexOf('DGECCGC') > -1) return 'circulares';
+  // 1. Documentos especiales (sin prefijo NAC-): clasificar por nombre de archivo
+  if (num.indexOf('NAC-') === -1 || archivo.indexOf('NAC-') === -1) {
+    // Código Tributario (documento único)
+    if (archivo.indexOf('CODIGO') > -1 && archivo.indexOf('TRIBUTARIO') > -1) return 'codigo';
+    if (num.indexOf('CODIGO') > -1 || num.indexOf('CÓDIGO') > -1) return 'codigo';
 
-  // Código Tributario: por nombre de archivo o contenido
-  if (archivo.indexOf('CODIGO') > -1 && archivo.indexOf('TRIBUTARIO') > -1) return 'codigo';
-  if (text.indexOf('codigo tributario') > -1 || text.indexOf('código tributario') > -1) return 'codigo';
+    // Reglamentos
+    if (archivo.indexOf('REGLAMENTO') > -1) return 'reglamentos';
 
-  // Reglamento LRTI: verificar antes de LRTI para evitar falsos positivos
-  if (archivo.indexOf('REGLAMENTO') > -1 && (archivo.indexOf('REGIMEN') > -1 || archivo.indexOf('APLICACION') > -1)) return 'reglamento';
-  if (archivo.indexOf('REGLAMENTO') > -1 && archivo.indexOf('COMPROBANTES') > -1) return 'reglamento';
+    // Leyes (LORTI, Ley de Compañías, etc.)
+    if (archivo.indexOf('LEY') > -1) return 'leyes';
+  }
 
-  // Ley de Régimen Tributario Interno (LRTI / LORTI)
-  if (archivo.indexOf('LEY_DE_R') > -1 || archivo.indexOf('LORTI') > -1 || archivo.indexOf('LRTI') > -1) return 'lrti';
-  if (archivo.indexOf('LEY-DE-COMPANIAS') > -1 || archivo.indexOf('LEY_DE_COMPANIAS') > -1) return 'lrti';
-  if (text.indexOf('régimen tributario') > -1 || text.indexOf('regimen tributario') > -1 ||
-      text.indexOf('lrti') > -1 || text.indexOf('lorti') > -1) return 'lrti';
+  // 2. Circulares: prefijo NAC-DGECCGC
+  if (num.indexOf('DGECCGC') > -1) return 'circulares';
 
-  // Resoluciones generales: NAC-DGERCGC y el resto
+  // 3. Todo lo demás con NAC-DGERCGC u otro NAC- = Resoluciones
   return 'resoluciones';
 }
 
@@ -1224,7 +1222,7 @@ function buildContext(resoluciones, query) {
     'Cita los numeros de resolucion y articulos cuando hagas referencia a ellos. ' +
     'Responde en espanol de forma clara, precisa y practica.\n\n';
 
-  var catLabels = { circulares: 'Circular', codigo: 'Codigo Tributario', lrti: 'Ley Regimen Tributario Interno', reglamento: 'Reglamento LRTI', resoluciones: 'Resolucion General' };
+  var catLabels = { circulares: 'Circular', codigo: 'Codigo Tributario', leyes: 'Ley', reglamentos: 'Reglamento', resoluciones: 'Resolucion' };
   ctx += 'NORMATIVA RELEVANTE:\n';
   resoluciones.forEach(function(r, i) {
     var cat = classifyResolucion(r);
