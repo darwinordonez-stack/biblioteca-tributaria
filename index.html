@@ -1156,26 +1156,7 @@ async function sendChat() {
 }
 
 async function searchRelevant(query) {
-  var words = query.toLowerCase().replace(/[¿?¡!,\.]/g, '').split(/\s+/).filter(function(w) { return w.length > 2; });
-  // Simple Spanish stemming: generate stems by removing common suffixes
-  var stems = [];
-  words.forEach(function(w) {
-    stems.push(w);
-    if (w.length > 5) {
-      // Remove common plural/suffix: -es, -s, -iones, -ción, -nes
-      if (w.endsWith('iones')) stems.push(w.slice(0, -5));
-      else if (w.endsWith('ción')) stems.push(w.slice(0, -4));
-      else if (w.endsWith('dores')) stems.push(w.slice(0, -5));
-      else if (w.endsWith('dor')) stems.push(w.slice(0, -3));
-      else if (w.endsWith('es')) stems.push(w.slice(0, -2));
-      else if (w.endsWith('s')) stems.push(w.slice(0, -1));
-      // Also add first 6 chars as rough stem
-      if (w.length > 7) stems.push(w.substring(0, Math.min(w.length - 2, 7)));
-    }
-  });
-  // Deduplicate stems
-  stems = stems.filter(function(s, i) { return s.length > 2 && stems.indexOf(s) === i; });
-
+  var words = query.toLowerCase().replace(/[¿?¡!,\.]/g, '').split(/\s+/).filter(function(w) { return w.length > 3; });
   var resultMap = {}; // id -> {res, score}
 
   function addResult(r, score) {
@@ -1186,7 +1167,21 @@ async function searchRelevant(query) {
     }
   }
 
-  // 1) Full-text search from Supabase (highest base score)
+  // 1) Direct titulo search in Supabase — highest relevance
+  try {
+    for (var wi = 0; wi < Math.min(words.length, 3); wi++) {
+      var tUrl = SUPABASE_URL + '/rest/v1/resoluciones?or=(titulo.ilike.' + encodeURIComponent('%' + words[wi] + '%') + ',palabras_clave.ilike.' + encodeURIComponent('%' + words[wi] + '%') + ')&select=*&limit=10';
+      var tRes = await fetch(tUrl, {
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Accept': 'application/json' }
+      });
+      if (tRes.ok) {
+        var tData = await tRes.json();
+        tData.forEach(function(r) { addResult(r, 5); }); // 5 pts per keyword match in titulo
+      }
+    }
+  } catch(e) { console.warn('Titulo search error:', e); }
+
+  // 2) FTS from Supabase
   try {
     var rpcUrl = SUPABASE_URL + '/rest/v1/rpc/search_resoluciones';
     var res = await fetch(rpcUrl, {
@@ -1196,33 +1191,17 @@ async function searchRelevant(query) {
     });
     if (res.ok) {
       var ftsResults = await res.json();
-      ftsResults.slice(0, 15).forEach(function(r, i) {
-        addResult(r, 10 - (i * 0.5)); // FTS rank order matters
+      ftsResults.slice(0, 10).forEach(function(r, i) {
+        addResult(r, 3 - (i * 0.2));
       });
     }
   } catch(e) { console.warn('FTS error:', e); }
 
-  // 2) Local keyword search — score by number of matching stems
-  allData.forEach(function(r) {
-    var haystack = [r.numero, r.titulo, r.palabras_clave, r.estado_original].concat(r.temas||[]).join(' ').toLowerCase();
-    var tituloHay = ((r.titulo||'') + ' ' + (r.palabras_clave||'')).toLowerCase();
-    var matchCount = 0;
-    var tituloMatch = 0;
-    stems.forEach(function(s) {
-      if (haystack.indexOf(s) > -1) matchCount++;
-      if (tituloHay.indexOf(s) > -1) tituloMatch++;
-    });
-    if (matchCount > 0) {
-      addResult(r, matchCount * 2 + tituloMatch * 3);
-    }
-  });
-
-  // 3) Search articles by keyword for content matches (use stems for better matching)
+  // 3) Article content search — find resolutions with matching article text
   try {
-    var artStems = stems.filter(function(s) { return s.length > 4; });
     var allMatchedArts = [];
-    for (var wi = 0; wi < Math.min(artStems.length, 3); wi++) {
-      var artSearchUrl = SUPABASE_URL + '/rest/v1/articulos?contenido=ilike.' + encodeURIComponent('%' + artStems[wi] + '%') + '&limit=10&select=resolucion_id,numero,titulo,contenido';
+    for (var wi = 0; wi < Math.min(words.length, 2); wi++) {
+      var artSearchUrl = SUPABASE_URL + '/rest/v1/articulos?contenido=ilike.' + encodeURIComponent('%' + words[wi] + '%') + '&limit=15&select=resolucion_id,numero,titulo,contenido';
       var artSearchRes = await fetch(artSearchUrl, {
         headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Accept': 'application/json' }
       });
@@ -1235,27 +1214,29 @@ async function searchRelevant(query) {
         });
       }
     }
-    // Score resoluciones found via article content
+    // Score: more matching articles = much more relevant
     var artResIds = {};
     allMatchedArts.forEach(function(a) {
       artResIds[a.resolucion_id] = (artResIds[a.resolucion_id] || 0) + 1;
     });
-    allData.forEach(function(r) {
-      if (artResIds[r.id]) {
-        addResult(r, artResIds[r.id] * 3); // More matching articles = more relevant
-        if (!r._articulos) r._articulos = allMatchedArts.filter(function(a) { return a.resolucion_id === r.id; });
+    for (var rid in artResIds) {
+      var found = allData.find(function(r) { return r.id == rid; });
+      if (found) {
+        addResult(found, artResIds[rid] * 4); // 4 pts per matching article
+        found._articulos = allMatchedArts.filter(function(a) { return a.resolucion_id == rid; });
       }
-    });
+    }
   } catch(e) { console.warn('Article search error:', e); }
 
-  // 4) Sort by relevance score descending
+  // 4) Sort by score descending, take top 8
   var sorted = Object.values(resultMap).sort(function(a, b) { return b.score - a.score; });
   var results = sorted.slice(0, 8).map(function(s) { return s.res; });
 
-  // 5) Fetch articles for top 5 results
-  if (results.length > 0) {
+  // 5) Fetch full articles for top 5 that don't have articles yet
+  var needArts = results.slice(0, 5).filter(function(r) { return !r._articulos || r._articulos.length === 0; });
+  if (needArts.length > 0) {
     try {
-      var resIds = results.slice(0, 5).map(function(r) { return r.id; });
+      var resIds = needArts.map(function(r) { return r.id; });
       var artUrl = SUPABASE_URL + '/rest/v1/articulos?resolucion_id=in.(' + resIds.join(',') + ')&order=orden.asc&limit=50';
       var artRes = await fetch(artUrl, {
         headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Accept': 'application/json' }
@@ -1267,15 +1248,13 @@ async function searchRelevant(query) {
           if (!artMap[a.resolucion_id]) artMap[a.resolucion_id] = [];
           artMap[a.resolucion_id].push(a);
         });
-        results.forEach(function(r) {
-          if (!r._articulos || r._articulos.length === 0) r._articulos = artMap[r.id] || [];
-        });
+        needArts.forEach(function(r) { r._articulos = artMap[r.id] || []; });
       }
     } catch(e) { console.warn('Articles fetch error:', e); }
   }
 
-  console.log('Search stems:', stems);
-  console.log('Search results ranked:', results.map(function(r,i) { return (i+1)+'. '+r.numero+' (score:'+resultMap[r.id].score+')'; }));
+  console.log('Search words:', words);
+  console.log('Search results:', results.map(function(r,i) { return (i+1)+'. '+r.numero+' score:'+resultMap[r.id].score; }));
   return results;
 }
 
@@ -1400,10 +1379,11 @@ async function callGemini(context, query) {
   }
 
   var data = await res.json();
-  if (data.choices && data.choices[0] && data.choices[0].message) {
+  if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
     return data.choices[0].message.content;
   }
-  throw new Error('Respuesta vacia del asistente');
+  console.error('Groq empty response:', JSON.stringify(data).substring(0, 500));
+  throw new Error('Respuesta vacia del asistente. Intenta con otra pregunta.');
 }
 
 function formatAIResponse(text) {
