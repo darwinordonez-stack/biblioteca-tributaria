@@ -1215,11 +1215,10 @@ async function searchRelevant(query) {
 
     // Also search articles by keyword for additional matches
     try {
-      var words = query.split(/\s+/).filter(function(w) { return w.length > 3; });
+      var words = query.split(/\s+/).filter(function(w) { return w.length > 2; });
       if (words.length > 0) {
-        // Search for each significant word individually to find more matches
-        var searchTerms = words.slice(0, 3).map(function(w) { return 'contenido=ilike.*' + encodeURIComponent(w) + '*'; });
-        var artSearchUrl = SUPABASE_URL + '/rest/v1/articulos?' + searchTerms.join('&') + '&limit=50&select=resolucion_id,numero,titulo,contenido';
+        var searchTerm = '%' + words.join('%') + '%';
+        var artSearchUrl = SUPABASE_URL + '/rest/v1/articulos?contenido=ilike.' + encodeURIComponent(searchTerm) + '&limit=50&select=resolucion_id,numero,titulo,contenido';
         var artSearchRes = await fetch(artSearchUrl, {
           headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Accept': 'application/json' }
         });
