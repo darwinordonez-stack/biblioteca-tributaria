@@ -456,6 +456,44 @@ select.filter-select:focus { outline: none; border-color: var(--green); box-shad
   .hero-stat-value { font-size: 22px; }
 }
 @keyframes fadeInUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+
+/* ── AI Assistant Chat ── */
+.chat-container { display: flex; flex-direction: column; height: calc(100vh - 200px); min-height: 500px; background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); overflow: hidden; }
+.chat-header { padding: 18px 24px; background: linear-gradient(135deg, var(--navy-deep), var(--navy)); color: var(--white); display: flex; align-items: center; gap: 14px; }
+.chat-header-icon { width: 42px; height: 42px; background: var(--green); border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+.chat-header-title { font-size: 16px; font-weight: 700; }
+.chat-header-sub { font-size: 12px; color: rgba(255,255,255,.5); margin-top: 2px; }
+.chat-messages { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+.chat-msg { max-width: 85%; animation: fadeInUp .3s ease; }
+.chat-msg.user { align-self: flex-end; }
+.chat-msg.ai { align-self: flex-start; }
+.chat-bubble { padding: 14px 18px; border-radius: 16px; font-size: 14px; line-height: 1.6; }
+.chat-msg.user .chat-bubble { background: var(--navy); color: var(--white); border-bottom-right-radius: 4px; }
+.chat-msg.ai .chat-bubble { background: var(--n100); color: var(--n900); border-bottom-left-radius: 4px; }
+.chat-msg.ai .chat-bubble strong { color: var(--navy); }
+.chat-sources { margin-top: 10px; padding: 12px 16px; background: var(--white); border: 1.5px solid var(--n300); border-radius: 12px; }
+.chat-sources-title { font-size: 11px; font-weight: 700; color: var(--n500); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+.chat-source-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--n100); font-size: 13px; cursor: pointer; transition: background .15s; }
+.chat-source-item:last-child { border-bottom: none; }
+.chat-source-item:hover { background: var(--n50); margin: 0 -8px; padding: 8px; border-radius: 8px; }
+.chat-source-year { background: var(--navy); color: var(--white); font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; white-space: nowrap; }
+.chat-source-num { font-weight: 600; color: var(--navy); }
+.chat-source-desc { color: var(--n700); font-size: 12px; }
+.chat-input-area { padding: 16px 20px; border-top: 1.5px solid var(--n100); display: flex; gap: 10px; background: var(--white); }
+.chat-input { flex: 1; padding: 12px 16px; border: 1.5px solid var(--n300); border-radius: 12px; font: 14px var(--font); color: var(--n900); resize: none; outline: none; min-height: 46px; max-height: 120px; }
+.chat-input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(0,230,178,.12); }
+.chat-input::placeholder { color: var(--n500); }
+.chat-send { width: 46px; height: 46px; border: none; border-radius: 12px; background: var(--green); color: var(--navy-deep); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .2s; flex-shrink: 0; }
+.chat-send:hover { background: var(--green-300); transform: scale(1.05); }
+.chat-send:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+.chat-typing { display: flex; gap: 4px; padding: 12px 18px; }
+.chat-typing span { width: 8px; height: 8px; background: var(--n300); border-radius: 50%; animation: typing 1.4s infinite; }
+.chat-typing span:nth-child(2) { animation-delay: .2s; }
+.chat-typing span:nth-child(3) { animation-delay: .4s; }
+@keyframes typing { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
+.chat-suggestions { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 24px; }
+.chat-suggestion { padding: 8px 14px; border: 1.5px solid var(--n300); border-radius: 20px; font-size: 13px; color: var(--n700); cursor: pointer; transition: all .2s; background: var(--white); }
+.chat-suggestion:hover { border-color: var(--green); color: var(--navy); background: rgba(0,230,178,.06); }
 </style>
 </head>
 <body>
@@ -488,8 +526,13 @@ select.filter-select:focus { outline: none; border-color: var(--green); box-shad
         Consultas Vinculantes
       </div>
       <!-- Sync y Config solo en admin.html -->
+      <div class="nav-group-label" style="margin-top:16px;padding:0 16px;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,.25);font-weight:700">Inteligencia Artificial</div>
+      <div class="nav-item" data-view="asistente">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2a4 4 0 014 4v1a4 4 0 01-8 0V6a4 4 0 014-4z"/><path d="M6 10v1a6 6 0 0012 0v-1"/><line x1="12" y1="17" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
+        Asistente Tributario
+      </div>
     </div>
-    <div class="sidebar-footer">v3.0 — Supabase + GitHub Pages</div>
+    <div class="sidebar-footer">v4.0 — Supabase + Gemini AI</div>
   </nav>
 
   <!-- Main Content -->
@@ -666,6 +709,7 @@ function showView(view) {
     case 'normativa': renderNormativa(c); break;
     case 'fiscalidad': renderFiscalidad(c); break;
     case 'consultas': renderConsultas(c); break;
+    case 'asistente': renderAsistente(c); break;
     // sync y config movidos a admin.html
   }
 }
@@ -899,6 +943,219 @@ function renderFiscalidad(c) {
     html += '</div>';
   }
   c.innerHTML = html;
+}
+
+// ── Asistente IA ──
+const GEMINI_KEY = 'AQ.Ab8RN6IS441gZ5azZzREXtBD4RE8iM9Egu3iu_mzT45n7nfWVQ';
+const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + GEMINI_KEY;
+let chatHistory = [];
+
+function renderAsistente(c) {
+  var html = '<div class="chat-container">' +
+    '<div class="chat-header">' +
+    '<div class="chat-header-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#011A33" stroke-width="2"><path d="M12 2a4 4 0 014 4v1a4 4 0 01-8 0V6a4 4 0 014-4z"/><path d="M6 10v1a6 6 0 0012 0v-1"/><line x1="12" y1="17" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg></div>' +
+    '<div><div class="chat-header-title">Asistente Tributario IA</div>' +
+    '<div class="chat-header-sub">Powered by Gemini — Consulta sobre normativa tributaria ecuatoriana</div></div></div>' +
+    '<div class="chat-messages" id="chatMessages">' +
+    '<div class="chat-msg ai"><div class="chat-bubble">Hola, soy el asistente tributario de Kushki. Puedo ayudarte con consultas sobre normativa tributaria ecuatoriana basandome en las <strong>' + allData.length + ' resoluciones</strong> del SRI que tenemos en nuestra base de datos.<br><br>Preguntame sobre cualquier tema: retenciones, IVA, renta, facturacion electronica, deberes formales, etc.</div></div>' +
+    '</div>' +
+    '<div class="chat-suggestions" id="chatSuggestions">' +
+    '<div class="chat-suggestion" onclick="askSuggestion(this)">¿Que normas regulan las retenciones de IVA?</div>' +
+    '<div class="chat-suggestion" onclick="askSuggestion(this)">Resumen de facturacion electronica</div>' +
+    '<div class="chat-suggestion" onclick="askSuggestion(this)">¿Que es el RIMPE y como funciona?</div>' +
+    '<div class="chat-suggestion" onclick="askSuggestion(this)">Normativa vigente sobre ISD</div>' +
+    '</div>' +
+    '<div class="chat-input-area">' +
+    '<textarea class="chat-input" id="chatInput" placeholder="Escribe tu consulta tributaria..." rows="1" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();sendChat()}"></textarea>' +
+    '<button class="chat-send" id="chatSendBtn" onclick="sendChat()">' +
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button></div></div>';
+  c.innerHTML = html;
+
+  // Auto-resize textarea
+  var input = document.getElementById('chatInput');
+  input.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+  });
+}
+
+function askSuggestion(el) {
+  document.getElementById('chatInput').value = el.textContent;
+  document.getElementById('chatSuggestions').style.display = 'none';
+  sendChat();
+}
+
+async function sendChat() {
+  var input = document.getElementById('chatInput');
+  var query = input.value.trim();
+  if (!query) return;
+
+  var messages = document.getElementById('chatMessages');
+  var sendBtn = document.getElementById('chatSendBtn');
+  var suggestions = document.getElementById('chatSuggestions');
+  if (suggestions) suggestions.style.display = 'none';
+
+  // Add user message
+  messages.innerHTML += '<div class="chat-msg user"><div class="chat-bubble">' + escapeHtml(query) + '</div></div>';
+  input.value = '';
+  input.style.height = 'auto';
+  sendBtn.disabled = true;
+
+  // Add typing indicator
+  messages.innerHTML += '<div class="chat-msg ai" id="typingIndicator"><div class="chat-bubble"><div class="chat-typing"><span></span><span></span><span></span></div></div></div>';
+  messages.scrollTop = messages.scrollHeight;
+
+  try {
+    // 1. Search relevant resoluciones
+    var relevant = await searchRelevant(query);
+
+    // 2. Build context for Gemini
+    var context = buildContext(relevant, query);
+
+    // 3. Call Gemini API
+    var aiResponse = await callGemini(context, query);
+
+    // Remove typing indicator
+    var typing = document.getElementById('typingIndicator');
+    if (typing) typing.remove();
+
+    // 4. Display AI response + sources
+    var sourcesHtml = '';
+    if (relevant.length > 0) {
+      sourcesHtml = '<div class="chat-sources"><div class="chat-sources-title">Resoluciones relacionadas (' + relevant.length + ')</div>';
+      relevant.forEach(function(r) {
+        var estado = r.vigente ? '<span style="color:var(--success);font-size:11px"> Vigente</span>' : '<span style="color:var(--error);font-size:11px"> Derogada</span>';
+        sourcesHtml += '<div class="chat-source-item" onclick="openDetail(\'' + r.id + '\')">' +
+          '<span class="chat-source-year">' + (r.anio||'') + '</span>' +
+          '<div><div class="chat-source-num">' + r.numero + estado + '</div>' +
+          '<div class="chat-source-desc">' + (r.titulo||r.palabras_clave||'').substring(0, 100) + '</div></div></div>';
+      });
+      sourcesHtml += '</div>';
+    }
+
+    messages.innerHTML += '<div class="chat-msg ai"><div class="chat-bubble">' + formatAIResponse(aiResponse) + '</div>' + sourcesHtml + '</div>';
+
+  } catch(e) {
+    var typing = document.getElementById('typingIndicator');
+    if (typing) typing.remove();
+    messages.innerHTML += '<div class="chat-msg ai"><div class="chat-bubble" style="border-left:3px solid var(--error)">Error al consultar: ' + escapeHtml(e.message) + '. Intenta de nuevo.</div></div>';
+  }
+
+  sendBtn.disabled = false;
+  messages.scrollTop = messages.scrollHeight;
+}
+
+async function searchRelevant(query) {
+  var results = [];
+
+  // Use full-text search
+  try {
+    var rpcUrl = SUPABASE_URL + '/rest/v1/rpc/search_resoluciones';
+    var res = await fetch(rpcUrl, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ query_text: query })
+    });
+    if (res.ok) {
+      results = await res.json();
+      // Limit to top 15 most relevant
+      results = results.slice(0, 15);
+    }
+  } catch(e) { console.warn('FTS error:', e); }
+
+  // If FTS returned few results, also do keyword search in local data
+  if (results.length < 5) {
+    var words = query.toLowerCase().split(/\s+/).filter(function(w) { return w.length > 2; });
+    var localMatches = allData.filter(function(r) {
+      var haystack = [r.numero, r.titulo, r.palabras_clave, r.estado_original].concat(r.temas||[]).join(' ').toLowerCase();
+      return words.some(function(w) { return haystack.indexOf(w) > -1; });
+    }).slice(0, 15);
+
+    // Merge without duplicates
+    var ids = new Set(results.map(function(r) { return r.id; }));
+    localMatches.forEach(function(r) {
+      if (!ids.has(r.id)) { results.push(r); ids.add(r.id); }
+    });
+  }
+
+  // Sort by date descending (newest first)
+  results.sort(function(a, b) {
+    var da = a.fecha_publicacion || a.anio || '';
+    var db = b.fecha_publicacion || b.anio || '';
+    return db.localeCompare(da);
+  });
+
+  return results.slice(0, 15);
+}
+
+function buildContext(resoluciones, query) {
+  var ctx = 'Eres un asistente tributario experto en normativa ecuatoriana del SRI. ' +
+    'Responde basandote UNICAMENTE en las resoluciones proporcionadas. ' +
+    'Organiza tu respuesta de lo mas reciente a lo mas antiguo. ' +
+    'Si una resolucion deroga o reforma otra, mencionalo. ' +
+    'Cita los numeros de resolucion cuando hagas referencia a ellas. ' +
+    'Responde en espanol de forma clara y concisa.\n\n';
+
+  ctx += 'RESOLUCIONES RELEVANTES:\n';
+  resoluciones.forEach(function(r, i) {
+    ctx += '\n[' + (i+1) + '] ' + r.numero + ' (' + (r.anio||'s/f') + ')' +
+      ' — Estado: ' + (r.vigente ? 'VIGENTE' : 'DEROGADA/REFORMADA') +
+      '\nTitulo: ' + (r.titulo || r.palabras_clave || 'Sin titulo') +
+      '\nTemas: ' + (r.temas||[]).join(', ') +
+      '\nPalabras clave: ' + (r.palabras_clave || '') + '\n';
+  });
+
+  return ctx;
+}
+
+async function callGemini(context, query) {
+  var body = {
+    contents: [{
+      parts: [
+        { text: context },
+        { text: 'PREGUNTA DEL USUARIO: ' + query }
+      ]
+    }],
+    generationConfig: {
+      temperature: 0.3,
+      maxOutputTokens: 2048
+    }
+  };
+
+  var res = await fetch(GEMINI_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+
+  if (!res.ok) {
+    var errText = await res.text();
+    throw new Error('Gemini API error: ' + res.status);
+  }
+
+  var data = await res.json();
+  if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+    return data.candidates[0].content.parts[0].text;
+  }
+  throw new Error('Respuesta vacia de Gemini');
+}
+
+function formatAIResponse(text) {
+  // Convert markdown-like formatting to HTML
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/\n\n/g, '<br><br>')
+    .replace(/\n- /g, '<br>• ')
+    .replace(/\n(\d+)\. /g, '<br>$1. ')
+    .replace(/\n/g, '<br>')
+    .replace(/(NAC-\w+-\d+)/g, '<strong style="color:var(--blue-mid)">$1</strong>');
+}
+
+function escapeHtml(text) {
+  var div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 // ── Consultas Vinculantes ──
