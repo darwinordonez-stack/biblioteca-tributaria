@@ -34,6 +34,9 @@ body { font-family: var(--font); background: var(--n50); color: var(--n900); lin
   display: flex; flex-direction: column; position: fixed;
   top: 0; left: 0; bottom: 0; z-index: 100;
   transition: transform .3s cubic-bezier(.4,0,.2,1);
+  background-image: url('sidebar-banner.jpg');
+  background-size: cover; background-position: center top;
+  background-blend-mode: soft-light; background-repeat: no-repeat;
 }
 .sidebar-header {
   padding: 28px 24px 22px;
@@ -518,7 +521,7 @@ select.filter-select:focus { outline: none; border-color: var(--green); box-shad
   <nav class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <div class="sidebar-logo">
-        <svg viewBox="0 0 36 36" fill="none"><rect width="36" height="36" rx="9" fill="#00E6B2"/><path d="M9 25V11l9 7-9 7zm9-7l9-7v14l-9-7z" fill="#011A33"/></svg>
+        <img src="logo-rocket.jpg" alt="Kushki Tax" style="width:40px;height:40px;border-radius:10px;object-fit:cover">
         <span>Kushki Tax</span>
       </div>
       <div class="sidebar-sub">Biblioteca Tributaria</div>
@@ -1165,12 +1168,12 @@ async function searchRelevant(query) {
     });
     if (res.ok) {
       results = await res.json();
-      results = results.slice(0, 15);
+      results = results.slice(0, 20);
     }
   } catch(e) { console.warn('FTS error:', e); }
 
   // If FTS returned few results, also do keyword search in local data
-  if (results.length < 5) {
+  if (results.length < 8) {
     var words = query.toLowerCase().split(/\s+/).filter(function(w) { return w.length > 2; });
     var localMatches = allData.filter(function(r) {
       var haystack = [r.numero, r.titulo, r.palabras_clave, r.estado_original].concat(r.temas||[]).join(' ').toLowerCase();
@@ -1190,12 +1193,12 @@ async function searchRelevant(query) {
     return db.localeCompare(da);
   });
 
-  results = results.slice(0, 15);
+  results = results.slice(0, 20);
 
   // Fetch articles for the top results (the actual content of the norms)
   if (results.length > 0) {
     try {
-      var resIds = results.slice(0, 10).map(function(r) { return r.id; });
+      var resIds = results.slice(0, 15).map(function(r) { return r.id; });
       var artUrl = SUPABASE_URL + '/rest/v1/articulos?resolucion_id=in.(' + resIds.join(',') + ')&order=orden.asc&limit=200';
       var artRes = await fetch(artUrl, {
         headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Accept': 'application/json' }
@@ -1213,39 +1216,64 @@ async function searchRelevant(query) {
       }
     } catch(e) { console.warn('Articles fetch error:', e); }
 
-    // Also search articles by keyword for additional matches
+    // Also search articles by keyword for additional matches (each keyword separately)
     try {
-      var words = query.split(/\s+/).filter(function(w) { return w.length > 2; });
-      if (words.length > 0) {
-        var searchTerm = '%' + words.join('%') + '%';
-        var artSearchUrl = SUPABASE_URL + '/rest/v1/articulos?contenido=ilike.' + encodeURIComponent(searchTerm) + '&limit=50&select=resolucion_id,numero,titulo,contenido';
+      var words = query.split(/\s+/).filter(function(w) { return w.length > 3; });
+      var allMatchedArts = [];
+      for (var wi = 0; wi < Math.min(words.length, 4); wi++) {
+        var artSearchUrl = SUPABASE_URL + '/rest/v1/articulos?contenido=ilike.' + encodeURIComponent('%' + words[wi] + '%') + '&limit=30&select=resolucion_id,numero,titulo,contenido';
         var artSearchRes = await fetch(artSearchUrl, {
           headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Accept': 'application/json' }
         });
         if (artSearchRes.ok) {
-          var matchedArts = await artSearchRes.json();
-          // Find resoluciones that match via articles but weren't in results
-          var existingIds = new Set(results.map(function(r) { return r.id; }));
-          var newIds = new Set();
-          matchedArts.forEach(function(a) {
-            if (!existingIds.has(a.resolucion_id)) newIds.add(a.resolucion_id);
+          var arts = await artSearchRes.json();
+          arts.forEach(function(a) {
+            if (!allMatchedArts.some(function(x) { return x.resolucion_id === a.resolucion_id && x.numero === a.numero; })) {
+              allMatchedArts.push(a);
+            }
           });
-          // Add those resoluciones from allData
-          if (newIds.size > 0) {
-            allData.forEach(function(r) {
-              if (newIds.has(r.id)) {
-                r._articulos = matchedArts.filter(function(a) { return a.resolucion_id === r.id; });
-                r._matchedByContent = true;
-                results.push(r);
-              }
-            });
-          }
         }
       }
+      // Also search resoluciones by titulo/palabras_clave for key terms
+      var existingIds = new Set(results.map(function(r) { return r.id; }));
+      var keyTerms = words.filter(function(w) { return w.length > 4; });
+      keyTerms.forEach(function(term) {
+        allData.forEach(function(r) {
+          if (!existingIds.has(r.id)) {
+            var haystack = ((r.titulo||'') + ' ' + (r.palabras_clave||'')).toLowerCase();
+            if (haystack.indexOf(term.toLowerCase()) > -1) {
+              r._matchedByContent = true;
+              results.push(r);
+              existingIds.add(r.id);
+            }
+          }
+        });
+      });
+      // Add resoluciones found via article content
+      var newIds = new Set();
+      allMatchedArts.forEach(function(a) {
+        if (!existingIds.has(a.resolucion_id)) newIds.add(a.resolucion_id);
+      });
+      if (newIds.size > 0) {
+        allData.forEach(function(r) {
+          if (newIds.has(r.id)) {
+            r._articulos = allMatchedArts.filter(function(a) { return a.resolucion_id === r.id; });
+            r._matchedByContent = true;
+            results.push(r);
+          }
+        });
+      }
+      // Attach matched articles to existing results that lacked them
+      results.forEach(function(r) {
+        if (!r._articulos || r._articulos.length === 0) {
+          var matched = allMatchedArts.filter(function(a) { return a.resolucion_id === r.id; });
+          if (matched.length > 0) r._articulos = matched;
+        }
+      });
     } catch(e) { console.warn('Article search error:', e); }
   }
 
-  return results.slice(0, 15);
+  return results.slice(0, 20);
 }
 
 function searchCDI(query) {
