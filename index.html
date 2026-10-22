@@ -551,7 +551,7 @@ select.filter-select:focus { outline: none; border-color: var(--green); box-shad
         Darth Vader
       </div>
     </div>
-    <div class="sidebar-footer">v4.1 — Supabase + Groq AI</div>
+    <div class="sidebar-footer">v4.2 — Supabase + Groq AI</div>
   </nav>
 
   <!-- Main Content -->
@@ -1364,7 +1364,7 @@ async function callGemini(context, query) {
       { role: 'user', content: query }
     ],
     temperature: 0.2,
-    max_tokens: 512
+    max_tokens: 2048
   };
 
   console.log('[v4.1] Groq request - model:', body.model, 'system:', context.length, 'chars, query:', query.length, 'chars');
@@ -1398,8 +1398,11 @@ async function callGemini(context, query) {
   }
 
   var data = await res.json();
-  if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
-    return data.choices[0].message.content;
+  if (data.choices && data.choices[0] && data.choices[0].message) {
+    var msg = data.choices[0].message;
+    // Some models put output in 'content', reasoning models put it in 'reasoning'
+    var answer = msg.content || msg.reasoning || '';
+    if (answer) return answer;
   }
   console.error('Groq empty response:', JSON.stringify(data).substring(0, 500));
   throw new Error('Respuesta vacia del asistente. Intenta con otra pregunta.');
