@@ -1360,34 +1360,24 @@ async function callGemini(context, query) {
     }
   };
 
-  // Try gemini-2.5-flash first, fallback to gemini-2.0-flash-lite
-  var urls = [
-    GEMINI_URL,
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=' + GEMINI_KEY,
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=' + GEMINI_KEY
-  ];
+  var res = await fetch(GEMINI_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
 
-  var lastError = '';
-  for (var u = 0; u < urls.length; u++) {
-    var res = await fetch(urls[u], {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-
-    if (res.ok) {
-      var data = await res.json();
-      if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-        return data.candidates[0].content.parts.filter(function(p) { return p.text; }).map(function(p) { return p.text; }).join('');
-      }
-      throw new Error('Respuesta vacia de Gemini');
-    }
-
-    lastError = await res.text();
-    console.warn('Gemini attempt ' + (u+1) + ' failed:', res.status, lastError);
+  if (!res.ok) {
+    var errText = await res.text();
+    console.error('Gemini error:', res.status, errText);
+    console.error('Context length:', context.length, 'chars');
+    throw new Error('Gemini API error (status ' + res.status + '): ' + errText.substring(0, 300));
   }
 
-  throw new Error('Gemini API error: ' + lastError.substring(0, 200));
+  var data = await res.json();
+  if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+    return data.candidates[0].content.parts.filter(function(p) { return p.text; }).map(function(p) { return p.text; }).join('');
+  }
+  throw new Error('Respuesta vacia de Gemini');
 }
 
 function formatAIResponse(text) {
