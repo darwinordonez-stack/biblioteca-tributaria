@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Biblioteca Tributaria — Kushki</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & Base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --green: #00E6B2; --green-dark: #2D7A68; --green-light: #CCFFF2;
+  --navy: #023365; --navy-deep: #011A33; --blue-mid: #0A4F8A; --blue-light: #D6E8F7;
+  --n900: #293036; --n700: #4A5568; --n500: #677684; --n300: #CBD5E0; --n100: #EDF2F7; --n50: #F7FAFC;
+  --white: #FFFFFF; --error: #DF4E20; --success: #2ABA05; --warning: #FAD30A;
+  --font: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --radius: 10px; --radius-lg: 16px;
+  --shadow: 0 2px 8px rgba(2,51,101,.07); --shadow-md: 0 4px 16px rgba(2,51,101,.1);
+}
+::selection { background: var(--green); color: var(--navy-deep); }
+html { font-size: 14px; scroll-behavior: smooth; }
+body { font-family: var(--font); background: var(--n50); color: var(--n900); line-height: 1.55; min-height: 100vh; }
+
+/* ── Layout ── */
+.app { display: flex; min-height: 100vh; }
+.sidebar { width: 260px; background: var(--navy); color: var(--white); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; transition: transform .3s ease; }
+.sidebar-header { padding: 24px 20px 16px; border-bottom: 1px solid rgba(255,255,255,.08); }
+.sidebar-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.sidebar-logo svg { width: 28px; height: 28px; }
+.sidebar-logo span { font-size: 17px; font-weight: 700; letter-spacing: -.3px; }
+.sidebar-sub { font-size: 12px; color: rgba(255,255,255,.5); font-weight: 400; }
+.sidebar-nav { flex: 1; padding: 12px 10px; overflow-y: auto; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer; font-size: 13.5px; font-weight: 500; color: rgba(255,255,255,.7); transition: all .15s; user-select: none; }
+.nav-item:hover { background: rgba(255,255,255,.06); color: var(--white); }
+.nav-item.active { background: rgba(0,230,178,.12); color: var(--green); }
+.nav-item svg { width: 18px; height: 18px; opacity: .7; flex-shrink: 0; }
+.nav-item.active svg { opacity: 1; }
+.nav-sep { height: 1px; background: rgba(255,255,255,.06); margin: 8px 12px; }
+.sidebar-footer { padding: 14px 20px; border-top: 1px solid rgba(255,255,255,.08); font-size: 11px; color: rgba(255,255,255,.35); }
+
+.main { margin-left: 260px; flex: 1; min-width: 0; }
+
+/* ── Top Bar ── */
+.topbar { position: sticky; top: 0; z-index: 50; background: rgba(247,250,252,.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--n300); padding: 0 32px; height: 56px; display: flex; align-items: center; gap: 16px; }
+.search-box { flex: 1; max-width: 560px; position: relative; }
+.search-box input { width: 100%; height: 38px; border: 1.5px solid var(--n300); border-radius: 8px; padding: 0 14px 0 38px; font: 400 13.5px/38px var(--font); color: var(--n900); background: var(--white); transition: border-color .15s; }
+.search-box input:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px rgba(0,230,178,.15); }
+.search-box input::placeholder { color: var(--n500); }
+.search-box svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--n500); pointer-events: none; }
+.topbar-stats { display: flex; gap: 20px; font-size: 12.5px; color: var(--n500); font-weight: 500; }
+.topbar-stats strong { color: var(--navy); font-weight: 700; }
+
+/* ── Content Area ── */
+.content { padding: 28px 32px 40px; }
+
+/* ── Dashboard View ── */
+.dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 28px; }
+.stat-card { background: var(--white); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
+.stat-card .stat-value { font-size: 28px; font-weight: 700; color: var(--navy); line-height: 1.1; }
+.stat-card .stat-label { font-size: 12px; color: var(--n500); margin-top: 4px; font-weight: 500; }
+.stat-card.accent { background: var(--navy); }
+.stat-card.accent .stat-value { color: var(--green); }
+.stat-card.accent .stat-label { color: rgba(255,255,255,.6); }
+
+.novedades-section { margin-bottom: 28px; }
+.section-title { font-size: 17px; font-weight: 700; color: var(--navy); margin-bottom: 14px; }
+.novedades-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
+.novedad-card { background: var(--white); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow); display: flex; gap: 14px; align-items: flex-start; cursor: pointer; transition: box-shadow .15s, transform .15s; }
+.novedad-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.novedad-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); margin-top: 5px; flex-shrink: 0; }
+.novedad-num { font-size: 13.5px; font-weight: 600; color: var(--navy); }
+.novedad-desc { font-size: 12px; color: var(--n700); margin-top: 2px; line-height: 1.4; }
+.novedad-date { font-size: 11px; color: var(--n500); margin-top: 4px; }
+
+/* ── Filters Bar ── */
+.filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
+.filter-chip { display: inline-flex; align-items: center; gap: 5px; padding: 6px 14px; border-radius: 20px; font-size: 12.5px; font-weight: 500; cursor: pointer; border: 1.5px solid var(--n300); color: var(--n700); background: var(--white); transition: all .15s; user-select: none; }
+.filter-chip:hover { border-color: var(--navy); color: var(--navy); }
+.filter-chip.active { background: var(--navy); color: var(--white); border-color: var(--navy); }
+.filter-chip .count { font-size: 11px; opacity: .6; }
+select.filter-select { height: 34px; border: 1.5px solid var(--n300); border-radius: 8px; padding: 0 28px 0 12px; font: 500 12.5px var(--font); color: var(--n700); background: var(--white) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%234A5568' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 10px center; -webkit-appearance: none; cursor: pointer; }
+select.filter-select:focus { outline: none; border-color: var(--green); }
+.filter-clear { font-size: 12px; color: var(--error); cursor: pointer; font-weight: 500; padding: 6px 10px; }
+.filter-clear:hover { text-decoration: underline; }
+
+/* ── Table ── */
+.table-wrap { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow); overflow: hidden; }
+.table-header { display: grid; grid-template-columns: 2fr 1fr 100px 140px 100px 60px; padding: 12px 20px; background: var(--n100); font-size: 11.5px; font-weight: 600; color: var(--n500); text-transform: uppercase; letter-spacing: .3px; gap: 12px; }
+.table-row { display: grid; grid-template-columns: 2fr 1fr 100px 140px 100px 60px; padding: 14px 20px; border-bottom: 1px solid var(--n100); font-size: 13px; gap: 12px; align-items: center; transition: background .1s; cursor: pointer; }
+.table-row:hover { background: rgba(0,230,178,.04); }
+.table-row:last-child { border-bottom: none; }
+.row-numero { font-weight: 600; color: var(--navy); font-size: 12.5px; }
+.row-titulo { font-size: 12px; color: var(--n700); margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.row-tema { display: inline-flex; align-items: center; gap: 4px; }
+.tema-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.row-estado { font-size: 12px; }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+.badge-vigente { background: #E6F9E0; color: #166534; }
+.badge-derogada { background: #FDE8E0; color: #991B1B; }
+.badge-reformada { background: #FFF9E0; color: #854D0E; }
+.row-pdf { display: flex; justify-content: center; }
+.btn-pdf { width: 32px; height: 32px; border-radius: 8px; border: none; background: var(--green-light); color: var(--green-dark); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .15s; }
+.btn-pdf:hover { background: var(--green); color: var(--navy-deep); }
+
+/* ── Pagination ── */
+.pagination { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-top: 1px solid var(--n100); }
+.pagination-info { font-size: 12.5px; color: var(--n500); }
+.pagination-btns { display: flex; gap: 4px; }
+.page-btn { width: 34px; height: 34px; border-radius: 8px; border: 1.5px solid var(--n300); background: var(--white); font: 600 12px var(--font); color: var(--n700); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .15s; }
+.page-btn:hover { border-color: var(--navy); color: var(--navy); }
+.page-btn.active { background: var(--navy); color: var(--white); border-color: var(--navy); }
+.page-btn:disabled { opacity: .35; cursor: default; }
+
+/* ── Detail Panel ── */
+.detail-overlay { position: fixed; inset: 0; background: rgba(1,26,51,.4); z-index: 200; opacity: 0; visibility: hidden; transition: all .2s; }
+.detail-overlay.open { opacity: 1; visibility: visible; }
+.detail-panel { position: fixed; top: 0; right: 0; bottom: 0; width: min(600px, 90vw); background: var(--white); z-index: 201; transform: translateX(100%); transition: transform .25s ease; box-shadow: -4px 0 24px rgba(1,26,51,.12); overflow-y: auto; }
+.detail-panel.open { transform: translateX(0); }
+.detail-head { position: sticky; top: 0; background: var(--navy); padding: 24px 28px 20px; z-index: 1; }
+.detail-close { position: absolute; top: 16px; right: 16px; width: 32px; height: 32px; border-radius: 8px; border: none; background: rgba(255,255,255,.1); color: var(--white); cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; }
+.detail-close:hover { background: rgba(255,255,255,.2); }
+.detail-numero { font-size: 20px; font-weight: 700; color: var(--white); }
+.detail-body { padding: 24px 28px 40px; }
+.detail-section { margin-bottom: 20px; }
+.detail-label { font-size: 11px; font-weight: 600; color: var(--n500); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; }
+.detail-value { font-size: 14px; color: var(--n900); line-height: 1.5; }
+.detail-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.detail-tag { padding: 4px 12px; border-radius: 16px; font-size: 12px; font-weight: 500; background: var(--blue-light); color: var(--blue-mid); }
+.detail-btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; border-radius: var(--radius); border: none; font: 600 14px var(--font); cursor: pointer; transition: all .15s; }
+.detail-btn-pdf { background: var(--green); color: var(--navy-deep); }
+.detail-btn-pdf:hover { background: #33FFCC; }
+
+/* ── CDI View ── */
+.cdi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.cdi-card { background: var(--white); border-radius: var(--radius); padding: 18px 20px; box-shadow: var(--shadow); display: flex; justify-content: space-between; align-items: center; transition: box-shadow .15s; }
+.cdi-card:hover { box-shadow: var(--shadow-md); }
+.cdi-pais { font-size: 15px; font-weight: 600; color: var(--navy); }
+.cdi-tipo { font-size: 12px; color: var(--n500); margin-top: 2px; }
+.cdi-link { padding: 8px 16px; border-radius: 8px; background: var(--green-light); color: var(--green-dark); font-size: 12px; font-weight: 600; text-decoration: none; transition: background .15s; }
+.cdi-link:hover { background: var(--green); color: var(--navy-deep); }
+
+/* ── Sync View ── */
+.sync-card { background: var(--white); border-radius: var(--radius-lg); padding: 28px 32px; box-shadow: var(--shadow); max-width: 640px; }
+.sync-title { font-size: 18px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
+.sync-desc { font-size: 13px; color: var(--n700); margin-bottom: 20px; line-height: 1.5; }
+.sync-btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 28px; border-radius: var(--radius); border: none; background: var(--navy); color: var(--white); font: 600 14px var(--font); cursor: pointer; transition: background .15s; }
+.sync-btn:hover { background: var(--blue-mid); }
+.sync-btn:disabled { opacity: .5; cursor: wait; }
+.sync-log { margin-top: 20px; max-height: 300px; overflow-y: auto; font-size: 12.5px; font-family: 'IBM Plex Mono', 'Consolas', monospace; line-height: 1.7; color: var(--n700); background: var(--n50); border-radius: 8px; padding: 16px; }
+.sync-log .ok { color: var(--success); }
+.sync-log .warn { color: #854D0E; }
+.sync-log .err { color: var(--error); }
+.sync-log .info { color: var(--blue-mid); }
+
+/* ── Loading / Empty ── */
+.loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; color: var(--n500); }
+.spinner { width: 36px; height: 36px; border: 3px solid var(--n300); border-top-color: var(--green); border-radius: 50%; animation: spin .7s linear infinite; margin-bottom: 14px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.empty-state { text-align: center; padding: 50px 20px; color: var(--n500); font-size: 14px; }
+
+/* ── Mobile Hamburger ── */
+.hamburger { display: none; width: 38px; height: 38px; border: none; background: none; cursor: pointer; flex-shrink: 0; }
+.hamburger svg { width: 22px; height: 22px; color: var(--navy); }
+
+/* ── Config Banner ── */
+.config-banner { background: linear-gradient(135deg, var(--navy), var(--blue-mid)); padding: 32px; border-radius: var(--radius-lg); color: var(--white); margin-bottom: 24px; }
+.config-banner h2 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+.config-banner p { font-size: 13px; opacity: .75; margin-bottom: 18px; line-height: 1.5; }
+.config-inputs { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+.config-field { flex: 1; min-width: 200px; }
+.config-field label { display: block; font-size: 11px; font-weight: 600; margin-bottom: 4px; opacity: .7; }
+.config-field input { width: 100%; height: 40px; border-radius: 8px; border: 1.5px solid rgba(255,255,255,.2); background: rgba(255,255,255,.08); color: var(--white); padding: 0 14px; font: 400 13px var(--font); }
+.config-field input::placeholder { color: rgba(255,255,255,.35); }
+.config-field input:focus { outline: none; border-color: var(--green); }
+.config-save { height: 40px; padding: 0 24px; border-radius: 8px; border: none; background: var(--green); color: var(--navy-deep); font: 600 13px var(--font); cursor: pointer; white-space: nowrap; }
+.config-save:hover { background: #33FFCC; }
+.config-status { margin-top: 10px; font-size: 12px; }
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .sidebar { transform: translateX(-100%); }
+  .sidebar.open { transform: translateX(0); }
+  .main { margin-left: 0; }
+  .hamburger { display: flex; align-items: center; justify-content: center; }
+  .table-header, .table-row { grid-template-columns: 2fr 1fr 90px 60px; }
+  .table-header > :nth-child(4), .table-row > :nth-child(4),
+  .table-header > :nth-child(5), .table-row > :nth-child(5) { display: none; }
+  .content { padding: 20px 16px; }
+  .topbar { padding: 0 16px; }
+}
+@media (max-width: 600px) {
+  .table-header, .table-row { grid-template-columns: 1fr 70px 50px; }
+  .table-header > :nth-child(2), .table-row > :nth-child(2) { display: none; }
+  .novedades-list { grid-template-columns: 1fr; }
+  .dash-grid { grid-template-columns: repeat(2, 1fr); }
+  .filters { gap: 6px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <svg viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="8" fill="#00E6B2"/><path d="M8 22V10l8 6-8 6zm8-6l8-6v12l-8-6z" fill="#011A33"/></svg>
+        <span>Kushki Tax</span>
+      </div>
+      <div class="sidebar-sub">Biblioteca Tributaria</div>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-item active" data-view="dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </div>
+      <div class="nav-item" data-view="normativa">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Normativa
+      </div>
+      <div class="nav-item" data-view="fiscalidad">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10A15.3 15.3 0 0112 2z"/></svg>
+        Fiscalidad Intl.
+      </div>
+      <div class="nav-sep"></div>
+      <div class="nav-item" data-view="sync">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+        Sincronizar SRI
+      </div>
+      <div class="nav-item" data-view="config">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.32 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        Configuracion
+      </div>
+    </div>
+    <div class="sidebar-footer">v2.0 — Supabase + GitHub Pages</div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="main">
+    <div class="topbar">
+      <button class="hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" placeholder="Buscar por numero, palabra clave o tema..." />
+      </div>
+      <div class="topbar-stats" id="topStats">
+        <span><strong id="statTotal">—</strong> resoluciones</span>
+        <span><strong id="statVigentes">—</strong> vigentes</span>
+      </div>
+    </div>
+
+    <div class="content" id="content">
+      <div class="loading"><div class="spinner"></div>Conectando con la base de datos...</div>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Slide Panel -->
+<div class="detail-overlay" id="detailOverlay" onclick="closeDetail()"></div>
+<div class="detail-panel" id="detailPanel">
+  <div class="detail-head">
+    <button class="detail-close" onclick="closeDetail()">&times;</button>
+    <div class="detail-numero" id="detailNumero"></div>
+    <div id="detailEstado"></div>
+  </div>
+  <div class="detail-body" id="detailBody"></div>
+</div>
+
+<script>
+// ── Config ──
+const CONFIG_KEY = 'bt_kushki_config';
+let SUPABASE_URL = 'https://lxpqozjylvvqaokfohph.supabase.co';
+let SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cHFvemp5bHZ2cWFva2ZvaHBoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MjA0OTUsImV4cCI6MjEwODE5NjQ5NX0.51Z95EXi46kA6eSKbAkDVGNNCiTaCAIfq6Pp3SpU7S8';
+
+// Drive folder IDs
+const DRIVE_FOLDERS = {
+  normativa: '1pBgZQajyvvwPALfQvubblaeEx5J7rr25',
+  fiscalidad: '1MhDRdvvzMLPmgJ-wkqTE2-AWEopjcRQG',
+  consulta: '1qLMDvr3KHEAP32I_THeSUwzZPt15KZww'
+};
+
+// Tema colors
+const TEMA_COLORS = {
+  'Renta': '#0A4F8A', 'IVA': '#00E6B2', 'ICE': '#DF4E20', 'ISD': '#FAD30A',
+  'Deberes Formales': '#3B7FBF', 'SRI': '#023365', 'Fiscalidad Internacional': '#2D7A68',
+  'Otros': '#677684', 'Aduanas': '#5465A8', 'Tributario': '#BF4F88'
+};
+
+// State
+let allData = [];
+let driveFiles = {};
+let cdiData = [];
+let filteredData = [];
+let currentView = 'dashboard';
+let currentPage = 1;
+const PAGE_SIZE = 30;
+let filters = { tema: '', anio: '', vigente: '', search: '' };
+
+// ── Supabase REST Helper ──
+async function sbFetch(path, opts = {}) {
+  const url = SUPABASE_URL + '/rest/v1/' + path;
+  const headers = { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY };
+  if (opts.headers) Object.assign(headers, opts.headers);
+  const res = await fetch(url, { ...opts, headers });
+  if (!res.ok) throw new Error(res.status + ': ' + (await res.text()));
+  return res;
+}
+
+async function sbGet(path) {
+  const res = await sbFetch(path, { headers: { 'Accept': 'application/json' } });
+  return res.json();
+}
+
+// ── Load Config ──
+function loadConfig() {
+  try {
+    var c = JSON.parse(localStorage.getItem(CONFIG_KEY) || '{}');
+    if (c.url) SUPABASE_URL = c.url;
+    if (c.key) SUPABASE_KEY = c.key;
+  } catch(e) {}
+}
+
+function saveConfig(url, key) {
+  SUPABASE_URL = url.replace(/\/$/, '');
+  SUPABASE_KEY = key;
+  localStorage.setItem(CONFIG_KEY, JSON.stringify({ url: SUPABASE_URL, key: SUPABASE_KEY }));
+}
+
+// ── Init ──
+loadConfig();
+
+async function init() {
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    showView('config');
+    return;
+  }
+  try {
+    showLoading('Cargando resoluciones...');
+    var results = await Promise.all([
+      sbGet('resoluciones?select=*&order=fecha_publicacion.desc.nullslast&limit=1000'),
+      sbGet('drive_files?select=*'),
+      sbGet('cdi_convenios?select=*')
+    ]);
+    allData = results[0];
+    // Build drive map by category
+    driveFiles = {};
+    results[1].forEach(function(d) {
+      if (!driveFiles[d.categoria]) driveFiles[d.categoria] = {};
+      driveFiles[d.categoria][d.nombre_archivo] = d.drive_id;
+    });
+    cdiData = results[2];
+    applyFilters();
+    document.getElementById('statTotal').textContent = allData.length;
+    document.getElementById('statVigentes').textContent = allData.filter(function(r) { return r.vigente; }).length;
+    showView('dashboard');
+  } catch(e) {
+    console.error(e);
+    showView('config');
+  }
+}
+
+// ── Views ──
+function showLoading(msg) {
+  document.getElementById('content').innerHTML = '<div class="loading"><div class="spinner"></div>' + (msg || 'Cargando...') + '</div>';
+}
+
+function showView(view) {
+  currentView = view;
+  document.querySelectorAll('.nav-item').forEach(function(n) {
+    n.classList.toggle('active', n.dataset.view === view);
+  });
+  document.getElementById('sidebar').classList.remove('open');
+  var c = document.getElementById('content');
+  switch(view) {
+    case 'dashboard': renderDashboard(c); break;
+    case 'normativa': renderNormativa(c); break;
+    case 'fiscalidad': renderFiscalidad(c); break;
+    case 'sync': renderSync(c); break;
+    case 'config': renderConfig(c); break;
+  }
+}
+
+// ── Dashboard ──
+function renderDashboard(c) {
+  var total = allData.length;
+  var vigentes = allData.filter(function(r) { return r.vigente; }).length;
+  var derogadas = total - vigentes;
+  var temas = {};
+  allData.forEach(function(r) { (r.temas || []).forEach(function(t) { temas[t] = (temas[t]||0) + 1; }); });
+
+  var driveCount = Object.keys(driveFiles.normativa||{}).length + Object.keys(driveFiles.fiscalidad||{}).length + Object.keys(driveFiles.consulta||{}).length;
+
+  // Recent 8 by fecha_publicacion
+  var recent = allData.filter(function(r) { return r.fecha_publicacion; })
+    .sort(function(a,b) { return b.fecha_publicacion.localeCompare(a.fecha_publicacion); })
+    .slice(0, 8);
+
+  var temasHtml = Object.entries(temas).sort(function(a,b) { return b[1]-a[1]; }).map(function(pair) {
+    return '<div class="filter-chip" onclick="goNormativa(\'' + pair[0] + '\')" style="cursor:pointer">' +
+      '<span class="tema-dot" style="background:' + (TEMA_COLORS[pair[0]]||'#677684') + '"></span>' +
+      pair[0] + ' <span class="count">' + pair[1] + '</span></div>';
+  }).join('');
+
+  var recentHtml = recent.map(function(r) {
+    var desc = (r.titulo || r.palabras_clave || '').substring(0, 100);
+    return '<div class="novedad-card" onclick="openDetail(\'' + r.id + '\')">' +
+      '<div class="novedad-dot"></div><div>' +
+      '<div class="novedad-num">' + r.numero + '</div>' +
+      '<div class="novedad-desc">' + desc + '</div>' +
+      '<div class="novedad-date">' + formatDate(r.fecha_publicacion) + '</div>' +
+      '</div></div>';
+  }).join('');
+
+  c.innerHTML = '<div class="dash-grid">' +
+    '<div class="stat-card accent"><div class="stat-value">' + total + '</div><div class="stat-label">Total resoluciones</div></div>' +
+    '<div class="stat-card"><div class="stat-value" style="color:var(--success)">' + vigentes + '</div><div class="stat-label">Vigentes</div></div>' +
+    '<div class="stat-card"><div class="stat-value" style="color:var(--error)">' + derogadas + '</div><div class="stat-label">Derogadas / Reformadas</div></div>' +
+    '<div class="stat-card"><div class="stat-value">' + driveCount + '</div><div class="stat-label">PDFs vinculados</div></div>' +
+    '</div>' +
+    '<div class="novedades-section"><div class="section-title">Ultimas actualizaciones</div>' +
+    '<div class="novedades-list">' + recentHtml + '</div></div>' +
+    '<div class="section-title">Resoluciones por tema</div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">' + temasHtml + '</div>';
+}
+
+function goNormativa(tema) {
+  filters.tema = tema;
+  showView('normativa');
+}
+
+// ── Normativa (main table) ──
+function renderNormativa(c) {
+  applyFilters();
+  var totalPages = Math.ceil(filteredData.length / PAGE_SIZE);
+  if (currentPage > totalPages) currentPage = 1;
+  var start = (currentPage - 1) * PAGE_SIZE;
+  var pageData = filteredData.slice(start, start + PAGE_SIZE);
+
+  // Unique temas and anios
+  var temasSet = {}; var aniosSet = {};
+  allData.forEach(function(r) {
+    (r.temas || []).forEach(function(t) { temasSet[t] = 1; });
+    if (r.anio) aniosSet[r.anio] = 1;
+  });
+  var temas = Object.keys(temasSet).sort();
+  var anios = Object.keys(aniosSet).sort().reverse();
+
+  var filtersHtml = '<div class="filters">' +
+    '<select class="filter-select" id="fTema" onchange="filters.tema=this.value;currentPage=1;renderNormativa(document.getElementById(\'content\'))">' +
+    '<option value="">Todos los temas</option>' +
+    temas.map(function(t) { return '<option value="' + t + '"' + (filters.tema===t?' selected':'') + '>' + t + '</option>'; }).join('') +
+    '</select>' +
+    '<select class="filter-select" id="fAnio" onchange="filters.anio=this.value;currentPage=1;renderNormativa(document.getElementById(\'content\'))">' +
+    '<option value="">Todos los anos</option>' +
+    anios.map(function(a) { return '<option value="' + a + '"' + (filters.anio===a?' selected':'') + '>' + a + '</option>'; }).join('') +
+    '</select>' +
+    '<select class="filter-select" id="fVigente" onchange="filters.vigente=this.value;currentPage=1;renderNormativa(document.getElementById(\'content\'))">' +
+    '<option value="">Todo estado</option>' +
+    '<option value="true"' + (filters.vigente==='true'?' selected':'') + '>Vigentes</option>' +
+    '<option value="false"' + (filters.vigente==='false'?' selected':'') + '>Derogadas</option>' +
+    '</select>';
+
+  if (filters.tema || filters.anio || filters.vigente || filters.search) {
+    filtersHtml += '<span class="filter-clear" onclick="clearFilters()">Limpiar filtros</span>';
+  }
+  filtersHtml += '<span style="flex:1"></span><span style="font-size:12px;color:var(--n500)">' + filteredData.length + ' resultados</span></div>';
+
+  var rowsHtml = '';
+  if (pageData.length === 0) {
+    rowsHtml = '<div class="empty-state">No se encontraron resoluciones con estos filtros.</div>';
+  } else {
+    pageData.forEach(function(r) {
+      var tema = (r.temas||[])[0] || '';
+      var estado = r.vigente ? 'Vigente' : ((r.estado_original||'').indexOf('eforma') > -1 ? 'Reformada' : 'Derogada');
+      var badgeCls = r.vigente ? 'badge-vigente' : (estado === 'Reformada' ? 'badge-reformada' : 'badge-derogada');
+      rowsHtml += '<div class="table-row" onclick="openDetail(\'' + r.id + '\')">' +
+        '<div><div class="row-numero">' + r.numero + '</div><div class="row-titulo">' + (r.titulo||r.palabras_clave||'') + '</div></div>' +
+        '<div class="row-tema"><span class="tema-dot" style="background:' + (TEMA_COLORS[tema]||'#677684') + '"></span> ' + tema + '</div>' +
+        '<div>' + (r.anio||'') + '</div>' +
+        '<div>' + formatDate(r.fecha_publicacion) + '</div>' +
+        '<div class="row-estado"><span class="badge ' + badgeCls + '">' + estado + '</span></div>' +
+        '<div class="row-pdf"><button class="btn-pdf" onclick="event.stopPropagation();openPDF(\'' + (r.archivo||'') + '\',\'normativa\')" title="Abrir PDF">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></button></div></div>';
+    });
+  }
+
+  var pagHtml = '';
+  if (totalPages > 1) {
+    pagHtml = '<div class="pagination"><div class="pagination-info">Pagina ' + currentPage + ' de ' + totalPages + '</div>' +
+      '<div class="pagination-btns">' +
+      '<button class="page-btn" onclick="changePage(' + (currentPage-1) + ')"' + (currentPage===1?' disabled':'') + '>&laquo;</button>' +
+      paginationButtons(currentPage, totalPages) +
+      '<button class="page-btn" onclick="changePage(' + (currentPage+1) + ')"' + (currentPage===totalPages?' disabled':'') + '>&raquo;</button>' +
+      '</div></div>';
+  }
+
+  c.innerHTML = filtersHtml +
+    '<div class="table-wrap">' +
+    '<div class="table-header"><div>Resolucion</div><div>Tema</div><div>Ano</div><div>Publicacion</div><div>Estado</div><div>PDF</div></div>' +
+    rowsHtml + pagHtml + '</div>';
+}
+
+function paginationButtons(cur, total) {
+  var btns = [];
+  var range = 2;
+  for (var i = 1; i <= total; i++) {
+    if (i === 1 || i === total || (i >= cur - range && i <= cur + range)) {
+      btns.push('<button class="page-btn' + (i===cur?' active':'') + '" onclick="changePage(' + i + ')">' + i + '</button>');
+    } else if (btns.length > 0 && btns[btns.length-1] !== 'dots') {
+      btns.push('dots');
+    }
+  }
+  return btns.map(function(b) { return b === 'dots' ? '<span style="padding:0 4px;color:var(--n500)">&hellip;</span>' : b; }).join('');
+}
+
+function changePage(p) {
+  currentPage = p;
+  renderNormativa(document.getElementById('content'));
+  window.scrollTo(0, 0);
+}
+
+function clearFilters() {
+  filters = { tema: '', anio: '', vigente: '', search: '' };
+  document.getElementById('searchInput').value = '';
+  currentPage = 1;
+  renderNormativa(document.getElementById('content'));
+}
+
+function applyFilters() {
+  filteredData = allData.filter(function(r) {
+    if (filters.tema && !(r.temas||[]).includes(filters.tema)) return false;
+    if (filters.anio && r.anio !== filters.anio) return false;
+    if (filters.vigente === 'true' && !r.vigente) return false;
+    if (filters.vigente === 'false' && r.vigente) return false;
+    if (filters.search) {
+      var s = filters.search.toLowerCase();
+      var haystack = [r.numero, r.titulo, r.palabras_clave, r.estado_original].concat(r.temas||[]).join(' ').toLowerCase();
+      return haystack.indexOf(s) > -1;
+    }
+    return true;
+  });
+}
+
+// ── Fiscalidad Internacional ──
+function renderFiscalidad(c) {
+  var html = '<div class="section-title" style="margin-bottom:18px">Convenios para evitar Doble Imposicion (CDI)</div>';
+  if (cdiData.length === 0) {
+    html += '<div class="empty-state">No hay convenios cargados. Ejecuta la migracion primero.</div>';
+  } else {
+    html += '<div class="cdi-grid">';
+    cdiData.forEach(function(cd) {
+      var driveId = getDriveId(cd.archivo, 'fiscalidad');
+      var linkHtml = cd.archivo && driveId ? '<a class="cdi-link" href="https://drive.google.com/file/d/' + driveId + '/view" target="_blank">Ver PDF</a>' : '';
+      html += '<div class="cdi-card"><div><div class="cdi-pais">' + cd.pais + '</div>' +
+        '<div class="cdi-tipo">' + (cd.tipo||'CDI') + (cd.vigente ? ' &middot; Vigente' : ' &middot; No vigente') + '</div></div>' + linkHtml + '</div>';
+    });
+    html += '</div>';
+  }
+  c.innerHTML = html;
+}
+
+// ── Sync SRI ──
+function renderSync(c) {
+  c.innerHTML = '<div class="sync-card">' +
+    '<div class="sync-title">Sincronizar con el SRI</div>' +
+    '<div class="sync-desc">Descarga el Indice de Resoluciones Vigentes desde la pagina del SRI, compara con la base de datos actual, y muestra las resoluciones nuevas o con cambios de estado.</div>' +
+    '<div style="margin-bottom:16px">' +
+    '<label style="font-size:12px;color:var(--n500);font-weight:600;display:block;margin-bottom:4px">URL del Excel del SRI</label>' +
+    '<input type="text" id="sriUrl" value="https://www.sri.gob.ec/o/sri-portlet-biblioteca-alfresco-internet/descargar/47b68144-9995-4757-a1fc-80ee2c5ef3aa/%c3%8dndice%20Resoluciones%20Vigentes%20Normativa.xls" style="width:100%;height:38px;border:1.5px solid var(--n300);border-radius:8px;padding:0 12px;font:13px var(--font);color:var(--n900);" readonly /></div>' +
+    '<button class="sync-btn" id="syncBtn" onclick="runSync()">' +
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>' +
+    ' Iniciar sincronizacion</button>' +
+    '<div class="sync-log" id="syncLog" style="display:none"></div></div>' +
+    '<div style="margin-top:20px;background:var(--white);border-radius:var(--radius-lg);padding:24px 28px;box-shadow:var(--shadow);max-width:640px">' +
+    '<div class="section-title" style="font-size:15px;margin-bottom:8px">Sincronizacion manual</div>' +
+    '<p style="font-size:13px;color:var(--n700);line-height:1.6;margin-bottom:14px">Si no puedes descargar el Excel automaticamente, puedes descargarlo manualmente desde ' +
+    '<a href="https://www.sri.gob.ec/normativa-tributaria#702" target="_blank" style="color:var(--blue-mid);font-weight:600">sri.gob.ec/normativa-tributaria</a>, ' +
+    'busca "Indice Resoluciones Vigentes" y sube el archivo aqui.</p>' +
+    '<input type="file" id="excelFile" accept=".xls,.xlsx" style="font-size:13px" />' +
+    '<button class="sync-btn" style="margin-top:12px;background:var(--blue-mid)" onclick="syncFromFile()">Comparar archivo</button></div>';
+}
+
+async function runSync() {
+  var log = document.getElementById('syncLog');
+  var btn = document.getElementById('syncBtn');
+  log.style.display = 'block';
+  log.innerHTML = '';
+  btn.disabled = true;
+  addLog('Intentando descargar Excel del SRI...', 'info');
+  try {
+    var url = document.getElementById('sriUrl').value;
+    var res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var blob = await res.blob();
+    addLog('Excel descargado correctamente', 'ok');
+    await processExcelBlob(blob);
+  } catch(e) {
+    addLog('No se pudo descargar automaticamente: ' + e.message, 'warn');
+    addLog('Usa la opcion "Sincronizacion manual" para subir el archivo Excel.', 'info');
+  }
+  btn.disabled = false;
+}
+
+async function syncFromFile() {
+  var fileInput = document.getElementById('excelFile');
+  var file = fileInput.files[0];
+  if (!file) { alert('Selecciona un archivo Excel primero'); return; }
+  var log = document.getElementById('syncLog');
+  log.style.display = 'block';
+  log.innerHTML = '';
+  addLog('Procesando: ' + file.name, 'info');
+  await processExcelBlob(file);
+}
+
+async function processExcelBlob(blob) {
+  addLog('Leyendo hojas del Excel...', 'info');
+  try {
+    if (!window.XLSX) {
+      addLog('Cargando libreria SheetJS...', 'info');
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+    }
+    var data = await blob.arrayBuffer();
+    var wb = XLSX.read(data, { type: 'array', cellDates: true });
+
+    var excelNums = {};
+    var totalExcel = 0;
+
+    wb.SheetNames.forEach(function(name) {
+      if (name.indexOf('GR') === 0) return;
+      var ws = wb.Sheets[name];
+      var rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      for (var i = 2; i < rows.length; i++) {
+        var num = String(rows[i][1] || '').trim();
+        if (num) { excelNums[num] = 1; totalExcel++; }
+      }
+    });
+
+    addLog('Excel: ' + totalExcel + ' resoluciones en ' + wb.SheetNames.length + ' hojas', 'ok');
+
+    // Compare with DB
+    var dbNums = {};
+    allData.forEach(function(r) { dbNums[r.numero] = 1; });
+
+    var nuevas = Object.keys(excelNums).filter(function(n) { return !dbNums[n]; });
+    var eliminadas = Object.keys(dbNums).filter(function(n) { return !excelNums[n]; });
+
+    if (nuevas.length > 0) {
+      addLog(nuevas.length + ' resoluciones NUEVAS encontradas:', 'ok');
+      nuevas.forEach(function(n) { addLog('  + ' + n, 'ok'); });
+    } else {
+      addLog('No hay resoluciones nuevas.', 'info');
+    }
+
+    if (eliminadas.length > 0) {
+      addLog(eliminadas.length + ' resoluciones en DB que no estan en Excel:', 'warn');
+      eliminadas.slice(0, 10).forEach(function(n) { addLog('  ? ' + n, 'warn'); });
+      if (eliminadas.length > 10) addLog('  ... y ' + (eliminadas.length - 10) + ' mas', 'warn');
+    }
+
+    addLog('Sincronizacion completa. DB: ' + Object.keys(dbNums).length + ' | Excel: ' + totalExcel, 'info');
+  } catch(e) {
+    addLog('Error procesando Excel: ' + e.message, 'err');
+  }
+}
+
+function addLog(msg, type) {
+  var log = document.getElementById('syncLog');
+  log.innerHTML += '<div class="' + (type||'') + '">' + msg + '</div>';
+  log.scrollTop = log.scrollHeight;
+}
+
+function loadScript(src) {
+  return new Promise(function(resolve, reject) {
+    var s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+// ── Config View ──
+function renderConfig(c) {
+  c.innerHTML = '<div class="config-banner">' +
+    '<h2>Conectar con Supabase</h2>' +
+    '<p>Ingresa las credenciales de tu proyecto Supabase para conectar la Biblioteca Tributaria. Las encuentras en Settings &rarr; API.</p>' +
+    '<div class="config-inputs">' +
+    '<div class="config-field"><label>Project URL</label><input type="text" id="cfgUrl" placeholder="https://xxxxx.supabase.co" value="' + SUPABASE_URL + '" /></div>' +
+    '<div class="config-field"><label>anon / public key</label><input type="text" id="cfgKey" placeholder="eyJhbGciOiJI..." value="' + SUPABASE_KEY + '" /></div>' +
+    '<button class="config-save" onclick="testAndSave()">Conectar</button></div>' +
+    '<div class="config-status" id="cfgStatus"></div></div>' +
+    '<div style="background:var(--white);border-radius:var(--radius-lg);padding:24px 28px;box-shadow:var(--shadow);max-width:640px">' +
+    '<div class="section-title" style="font-size:15px;margin-bottom:10px">Instrucciones de configuracion</div>' +
+    '<ol style="font-size:13px;color:var(--n700);line-height:1.8;padding-left:18px">' +
+    '<li>Ve a <a href="https://supabase.com/dashboard" target="_blank" style="color:var(--blue-mid);font-weight:600">supabase.com/dashboard</a> y abre tu proyecto</li>' +
+    '<li>En el SQL Editor, ejecuta el archivo <code>supabase_schema.sql</code> para crear las tablas</li>' +
+    '<li>Abre <code>migrate.html</code> para cargar los datos (usa la Service Role key)</li>' +
+    '<li>Copia el <strong>Project URL</strong> y la <strong>anon key</strong> de Settings &rarr; API</li>' +
+    '<li>Pegalos arriba y haz clic en Conectar</li></ol></div>';
+}
+
+async function testAndSave() {
+  var url = document.getElementById('cfgUrl').value.trim();
+  var key = document.getElementById('cfgKey').value.trim();
+  var status = document.getElementById('cfgStatus');
+
+  if (!url || !key) { status.innerHTML = '<span style="color:#DF4E20">Completa ambos campos.</span>'; return; }
+
+  status.innerHTML = '<span style="color:rgba(255,255,255,.7)">Probando conexion...</span>';
+  try {
+    var res = await fetch(url.replace(/\/$/, '') + '/rest/v1/resoluciones?select=id&limit=1', {
+      headers: { 'apikey': key, 'Authorization': 'Bearer ' + key }
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    saveConfig(url, key);
+    status.innerHTML = '<span style="color:#00E6B2">Conexion exitosa. Cargando datos...</span>';
+    await init();
+  } catch(e) {
+    status.innerHTML = '<span style="color:#DF4E20">Error: ' + e.message + '. Verifica las credenciales.</span>';
+  }
+}
+
+// ── Detail Panel ──
+function openDetail(id) {
+  var r = allData.find(function(x) { return x.id === id; });
+  if (!r) return;
+
+  document.getElementById('detailNumero').textContent = r.numero;
+  var estado = r.vigente ? 'Vigente' : ((r.estado_original||'').indexOf('eforma') > -1 ? 'Reformada' : 'Derogada');
+  var badgeCls = r.vigente ? 'badge-vigente' : (estado === 'Reformada' ? 'badge-reformada' : 'badge-derogada');
+  document.getElementById('detailEstado').innerHTML = '<span class="badge ' + badgeCls + '">' + estado + '</span>';
+
+  var html = '';
+  if (r.titulo) html += '<div class="detail-section"><div class="detail-label">Titulo</div><div class="detail-value">' + r.titulo + '</div></div>';
+
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">';
+  if (r.fecha_suscripcion) html += '<div><div class="detail-label">Fecha suscripcion</div><div class="detail-value">' + formatDate(r.fecha_suscripcion) + '</div></div>';
+  if (r.fecha_publicacion) html += '<div><div class="detail-label">Fecha publicacion</div><div class="detail-value">' + formatDate(r.fecha_publicacion) + '</div></div>';
+  if (r.registro_oficial) html += '<div><div class="detail-label">Registro Oficial</div><div class="detail-value">' + r.registro_oficial + '</div></div>';
+  if (r.anio) html += '<div><div class="detail-label">Ano</div><div class="detail-value">' + r.anio + '</div></div>';
+  html += '</div>';
+
+  if (r.estado_original) html += '<div class="detail-section"><div class="detail-label">Estado original</div><div class="detail-value">' + r.estado_original + '</div></div>';
+  if (r.ultima_modificacion) html += '<div class="detail-section"><div class="detail-label">Ultima modificacion</div><div class="detail-value">' + r.ultima_modificacion + '</div></div>';
+
+  if (r.temas && r.temas.length) {
+    html += '<div class="detail-section"><div class="detail-label">Temas</div><div class="detail-tags">' +
+      r.temas.map(function(t) { return '<span class="detail-tag">' + t + '</span>'; }).join('') + '</div></div>';
+  }
+  if (r.palabras_clave) html += '<div class="detail-section"><div class="detail-label">Palabras clave</div><div class="detail-value" style="font-size:13px;color:var(--n700)">' + r.palabras_clave + '</div></div>';
+
+  html += '<div style="margin:20px 0"><button class="detail-btn detail-btn-pdf" onclick="openPDF(\'' + (r.archivo||'') + '\',\'normativa\')">' +
+    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Abrir PDF</button></div>';
+
+  document.getElementById('detailBody').innerHTML = html;
+  document.getElementById('detailOverlay').classList.add('open');
+  document.getElementById('detailPanel').classList.add('open');
+}
+
+function closeDetail() {
+  document.getElementById('detailOverlay').classList.remove('open');
+  document.getElementById('detailPanel').classList.remove('open');
+}
+
+// ── PDF Helper ──
+function openPDF(archivo, cat) {
+  if (!archivo) return;
+  var map = driveFiles[cat] || {};
+  var driveId = map[archivo];
+  if (driveId) {
+    window.open('https://drive.google.com/file/d/' + driveId + '/view', '_blank');
+  } else {
+    var folderId = DRIVE_FOLDERS[cat] || DRIVE_FOLDERS.normativa;
+    window.open('https://drive.google.com/drive/folders/' + folderId, '_blank');
+  }
+}
+
+function getDriveId(archivo, cat) {
+  var map = driveFiles[cat] || {};
+  return map[archivo] || '';
+}
+
+// ── Helpers ──
+function formatDate(d) {
+  if (!d) return '&mdash;';
+  try {
+    var dt = new Date(d);
+    if (isNaN(dt.getTime())) return d;
+    return dt.toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' });
+  } catch(e) { return d; }
+}
+
+// ── Search ──
+var searchTimeout;
+document.getElementById('searchInput').addEventListener('input', function(e) {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(function() {
+    filters.search = e.target.value.trim();
+    currentPage = 1;
+    if (currentView !== 'normativa') showView('normativa');
+    else renderNormativa(document.getElementById('content'));
+  }, 300);
+});
+
+// ── Navigation ──
+document.querySelectorAll('.nav-item').forEach(function(item) {
+  item.addEventListener('click', function() {
+    var view = item.dataset.view;
+    if (view) showView(view);
+  });
+});
+
+// ── Keyboard shortcuts ──
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeDetail();
+  if (e.key === '/' && ['INPUT','TEXTAREA'].indexOf(document.activeElement.tagName) === -1) {
+    e.preventDefault();
+    document.getElementById('searchInput').focus();
+  }
+});
+
+// ── Start ──
+init();
+</script>
+</body>
+</html>
