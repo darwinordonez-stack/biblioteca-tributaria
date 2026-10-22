@@ -1024,8 +1024,8 @@ function renderFiscalidad(c) {
 }
 
 // ── Asistente IA ──
-const GEMINI_KEY = 'AQ.Ab8RN6Jh4Xp9XK8BgurLp9xQFQUIJ_C4aXjqfYJRNhttKFZJRQ';
-const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + GEMINI_KEY;
+const GEMINI_KEY = 'AQ.Ab8RN6J93j-_XLkKHtavNmNtTLNxtrSZc40uw-WxFUXesMUyUw';
+const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.0-flash:generateContent?key=' + GEMINI_KEY;
 let chatHistory = [];
 
 function renderAsistente(c) {
@@ -1362,8 +1362,8 @@ async function callGemini(context, query) {
   // Try gemini-2.5-flash first, fallback to gemini-2.0-flash-lite
   var urls = [
     GEMINI_URL,
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=' + GEMINI_KEY,
-    'https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=' + GEMINI_KEY
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.0-flash-lite:generateContent?key=' + GEMINI_KEY,
+    'https://generativelanguage.googleapis.com/v1/models/gemini-3.0-flash:generateContent?key=' + GEMINI_KEY
   ];
 
   var lastError = '';
