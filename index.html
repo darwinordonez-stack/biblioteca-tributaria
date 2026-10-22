@@ -1028,12 +1028,12 @@ function renderAsistente(c) {
     '<div><div class="chat-header-title">Asistente Tributario IA</div>' +
     '<div class="chat-header-sub">Powered by Gemini — Consulta sobre normativa tributaria ecuatoriana</div></div></div>' +
     '<div class="chat-messages" id="chatMessages">' +
-    '<div class="chat-msg ai"><div class="chat-bubble">Hola, soy el asistente tributario de Kushki. Puedo ayudarte con consultas sobre normativa tributaria ecuatoriana basandome en las <strong>' + allData.length + ' resoluciones</strong> del SRI que tenemos en nuestra base de datos.<br><br>Preguntame sobre cualquier tema: retenciones, IVA, renta, facturacion electronica, deberes formales, etc.</div></div>' +
+    '<div class="chat-msg ai"><div class="chat-bubble">Hola, soy el asistente tributario de Kushki. Puedo ayudarte con consultas sobre normativa tributaria ecuatoriana basandome en:<br>• <strong>' + allData.length + ' resoluciones y circulares</strong> del SRI<br>• <strong>' + cdiData.length + ' convenios internacionales</strong> (CDI)<br>• <strong>Consultas vinculantes</strong> del SRI<br>• <strong>Leyes, codigos y reglamentos</strong> tributarios<br><br>Preguntame sobre cualquier tema: retenciones, IVA, renta, facturacion electronica, doble imposicion, etc.</div></div>' +
     '</div>' +
     '<div class="chat-suggestions" id="chatSuggestions">' +
-    '<div class="chat-suggestion" onclick="askSuggestion(this)">¿Que normas regulan las retenciones de IVA?</div>' +
+    '<div class="chat-suggestion" onclick="askSuggestion(this)">¿Que retenciones aplican los agregadores de pago?</div>' +
     '<div class="chat-suggestion" onclick="askSuggestion(this)">Resumen de facturacion electronica</div>' +
-    '<div class="chat-suggestion" onclick="askSuggestion(this)">¿Que es el RIMPE y como funciona?</div>' +
+    '<div class="chat-suggestion" onclick="askSuggestion(this)">¿Que convenios de doble imposicion tiene Ecuador?</div>' +
     '<div class="chat-suggestion" onclick="askSuggestion(this)">Normativa vigente sobre ISD</div>' +
     '</div>' +
     '<div class="chat-input-area">' +
@@ -1092,14 +1092,43 @@ async function sendChat() {
 
     // 4. Display AI response + sources
     var sourcesHtml = '';
+
+    // Normativa sources
     if (relevant.length > 0) {
-      sourcesHtml = '<div class="chat-sources"><div class="chat-sources-title">Resoluciones relacionadas (' + relevant.length + ')</div>';
+      var catLabels = { circulares: 'Circular', codigo: 'Codigo Tributario', leyes: 'Ley', reglamentos: 'Reglamento', resoluciones: 'Resolucion' };
+      sourcesHtml = '<div class="chat-sources"><div class="chat-sources-title">Normativa consultada (' + relevant.length + ')</div>';
       relevant.forEach(function(r) {
         var estado = r.vigente ? '<span style="color:var(--success);font-size:11px"> Vigente</span>' : '<span style="color:var(--error);font-size:11px"> Derogada</span>';
+        var catTag = classifyResolucion(r);
+        var catLabel = catLabels[catTag] || '';
         sourcesHtml += '<div class="chat-source-item" onclick="openDetail(\'' + r.id + '\')">' +
           '<span class="chat-source-year">' + (r.anio||'') + '</span>' +
-          '<div><div class="chat-source-num">' + r.numero + estado + '</div>' +
+          '<div><div class="chat-source-num">' + r.numero + estado + (catTag !== 'resoluciones' ? ' <span style="color:var(--blue-300);font-size:10px;font-weight:600;background:var(--blue-light);padding:1px 6px;border-radius:4px;margin-left:4px">' + catLabel + '</span>' : '') + '</div>' +
           '<div class="chat-source-desc">' + (r.titulo||r.palabras_clave||'').substring(0, 100) + '</div></div></div>';
+      });
+      sourcesHtml += '</div>';
+    }
+
+    // CDI sources
+    var cdiMatches = searchCDI(query);
+    if (cdiMatches.length > 0) {
+      sourcesHtml += '<div class="chat-sources" style="border-left-color:var(--blue-300)"><div class="chat-sources-title">Convenios internacionales (' + cdiMatches.length + ')</div>';
+      cdiMatches.slice(0, 10).forEach(function(cd) {
+        sourcesHtml += '<div class="chat-source-item"><span class="chat-source-year" style="background:var(--blue-light);color:var(--blue-mid)">CDI</span>' +
+          '<div><div class="chat-source-num">' + cd.pais + ' <span style="font-size:11px;color:' + (cd.vigente?'var(--success)':'var(--error)') + '">' + (cd.vigente?'Vigente':'No vigente') + '</span></div>' +
+          '<div class="chat-source-desc">' + (cd.tipo||'Convenio') + (cd.fecha?' — '+cd.fecha:'') + '</div></div></div>';
+      });
+      sourcesHtml += '</div>';
+    }
+
+    // Consultas vinculantes sources
+    var consultaMatches = searchConsultas(query);
+    if (consultaMatches.length > 0) {
+      sourcesHtml += '<div class="chat-sources" style="border-left-color:var(--green-700)"><div class="chat-sources-title">Consultas vinculantes (' + consultaMatches.length + ')</div>';
+      consultaMatches.slice(0, 5).forEach(function(cv) {
+        sourcesHtml += '<div class="chat-source-item" onclick="window.open(\'https://drive.google.com/file/d/' + cv.driveId + '/preview\',\'_blank\')">' +
+          '<span class="chat-source-year" style="background:var(--green-light);color:var(--green-dark)">CV</span>' +
+          '<div><div class="chat-source-num" style="font-size:12px">' + cv.name.replace(/\.pdf$/i,'').replace(/_/g,' ').substring(0,80) + '</div></div></div>';
       });
       sourcesHtml += '</div>';
     }
@@ -1212,9 +1241,46 @@ async function searchRelevant(query) {
   return results.slice(0, 15);
 }
 
+function searchCDI(query) {
+  var words = query.toLowerCase().split(/\s+/).filter(function(w) { return w.length > 2; });
+  var cdiKeywords = ['convenio', 'doble', 'imposicion', 'imposición', 'cdi', 'internacional', 'pais', 'país', 'tratado', 'bilateral'];
+  var isCdiQuery = words.some(function(w) { return cdiKeywords.indexOf(w) > -1; });
+
+  if (!isCdiQuery && cdiData.length > 0) {
+    // Also check if query mentions a country
+    isCdiQuery = cdiData.some(function(cd) {
+      return words.some(function(w) { return cd.pais.toLowerCase().indexOf(w) > -1; });
+    });
+  }
+
+  if (!isCdiQuery) return [];
+
+  // Return matching CDI or all if generic query
+  var matches = cdiData.filter(function(cd) {
+    var haystack = (cd.pais + ' ' + (cd.tipo||'') + ' ' + (cd.extra||'')).toLowerCase();
+    return words.some(function(w) { return haystack.indexOf(w) > -1; });
+  });
+
+  return matches.length > 0 ? matches : cdiData;
+}
+
+function searchConsultas(query) {
+  var words = query.toLowerCase().split(/\s+/).filter(function(w) { return w.length > 2; });
+  var consultaKeywords = ['consulta', 'vinculante', 'absolucion', 'absolución', 'criterio'];
+  var isConsultaQuery = words.some(function(w) { return consultaKeywords.indexOf(w) > -1; });
+  if (!isConsultaQuery) return [];
+
+  var consultaFiles = driveFiles.consulta || {};
+  var items = [];
+  for (var name in consultaFiles) {
+    items.push({ name: name, driveId: consultaFiles[name] });
+  }
+  return items;
+}
+
 function buildContext(resoluciones, query) {
   var ctx = 'Eres un asistente tributario experto en normativa ecuatoriana del SRI. ' +
-    'Responde basandote UNICAMENTE en las resoluciones y articulos proporcionados. ' +
+    'Responde basandote UNICAMENTE en la informacion proporcionada (resoluciones, articulos, convenios CDI, consultas vinculantes). ' +
     'Cuando la pregunta sea sobre porcentajes, casilleros, codigos o procedimientos especificos, ' +
     'cita textualmente el articulo relevante y da la respuesta concreta. ' +
     'Organiza tu respuesta de lo mas reciente a lo mas antiguo. ' +
@@ -1222,26 +1288,51 @@ function buildContext(resoluciones, query) {
     'Cita los numeros de resolucion y articulos cuando hagas referencia a ellos. ' +
     'Responde en espanol de forma clara, precisa y practica.\n\n';
 
+  // Normativa (resoluciones, circulares, leyes, reglamentos, código)
   var catLabels = { circulares: 'Circular', codigo: 'Codigo Tributario', leyes: 'Ley', reglamentos: 'Reglamento', resoluciones: 'Resolucion' };
-  ctx += 'NORMATIVA RELEVANTE:\n';
-  resoluciones.forEach(function(r, i) {
-    var cat = classifyResolucion(r);
-    ctx += '\n=== [' + (i+1) + '] ' + r.numero + ' (' + (r.anio||'s/f') + ') ===\n' +
-      'Tipo: ' + (catLabels[cat]||'Resolucion') +
-      ' | Estado: ' + (r.vigente ? 'VIGENTE' : 'DEROGADA/REFORMADA') + '\n' +
-      'Titulo: ' + (r.titulo || r.palabras_clave || 'Sin titulo') + '\n' +
-      'Temas: ' + (r.temas||[]).join(', ') + '\n';
+  if (resoluciones.length > 0) {
+    ctx += 'NORMATIVA RELEVANTE:\n';
+    resoluciones.forEach(function(r, i) {
+      var cat = classifyResolucion(r);
+      ctx += '\n=== [' + (i+1) + '] ' + r.numero + ' (' + (r.anio||'s/f') + ') ===\n' +
+        'Tipo: ' + (catLabels[cat]||'Resolucion') +
+        ' | Estado: ' + (r.vigente ? 'VIGENTE' : 'DEROGADA/REFORMADA') + '\n' +
+        'Titulo: ' + (r.titulo || r.palabras_clave || 'Sin titulo') + '\n' +
+        'Temas: ' + (r.temas||[]).join(', ') + '\n';
 
-    // Include article content (this is the key improvement)
-    if (r._articulos && r._articulos.length > 0) {
-      ctx += 'ARTICULOS:\n';
-      r._articulos.forEach(function(art) {
-        var content = (art.contenido || '').substring(0, 800);
-        ctx += '  Art. ' + (art.numero||'s/n') + (art.titulo ? ' - ' + art.titulo : '') + ':\n';
-        ctx += '  ' + content + (art.contenido && art.contenido.length > 800 ? '...' : '') + '\n';
-      });
-    }
-  });
+      if (r._articulos && r._articulos.length > 0) {
+        ctx += 'ARTICULOS:\n';
+        r._articulos.forEach(function(art) {
+          var content = (art.contenido || '').substring(0, 800);
+          ctx += '  Art. ' + (art.numero||'s/n') + (art.titulo ? ' - ' + art.titulo : '') + ':\n';
+          ctx += '  ' + content + (art.contenido && art.contenido.length > 800 ? '...' : '') + '\n';
+        });
+      }
+    });
+  }
+
+  // CDI (Convenios de Doble Imposición)
+  var cdiMatches = searchCDI(query);
+  if (cdiMatches.length > 0) {
+    ctx += '\nCONVENIOS DE DOBLE IMPOSICION (CDI):\n';
+    cdiMatches.forEach(function(cd, i) {
+      ctx += '[CDI-' + (i+1) + '] Pais: ' + cd.pais +
+        ' | Tipo: ' + (cd.tipo||'CDI') +
+        ' | Vigente: ' + (cd.vigente ? 'SI' : 'NO') +
+        (cd.fecha ? ' | Fecha: ' + cd.fecha : '') +
+        (cd.extra ? ' | Detalle: ' + cd.extra : '') + '\n';
+    });
+  }
+
+  // Consultas Vinculantes
+  var consultaMatches = searchConsultas(query);
+  if (consultaMatches.length > 0) {
+    ctx += '\nCONSULTAS VINCULANTES DISPONIBLES:\n';
+    consultaMatches.forEach(function(cv, i) {
+      ctx += '[CV-' + (i+1) + '] ' + cv.name.replace(/\.pdf$/i,'').replace(/_/g,' ') + '\n';
+    });
+    ctx += '(Estos son extractos de absoluciones de consultas formales del SRI)\n';
+  }
 
   return ctx;
 }
