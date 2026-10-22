@@ -551,7 +551,7 @@ select.filter-select:focus { outline: none; border-color: var(--green); box-shad
         Darth Vader
       </div>
     </div>
-    <div class="sidebar-footer">v4.2 — Supabase + Groq AI</div>
+    <div class="sidebar-footer">v4.3 — Supabase + Groq AI</div>
   </nav>
 
   <!-- Main Content -->
@@ -1148,7 +1148,12 @@ async function sendChat() {
       sourcesHtml += '</div>';
     }
 
-    messages.innerHTML += '<div class="chat-msg ai"><div class="chat-bubble">' + formatAIResponse(aiResponse) + '</div>' + sourcesHtml + '</div>';
+    var disclaimerHtml = '<div style="margin-top:12px;padding:10px 14px;background:linear-gradient(135deg,#011A33 0%,#023365 100%);border-radius:8px;border-left:3px solid var(--green-500);font-size:12px;color:#CBD5E0;line-height:1.5">' +
+      '<span style="color:#00E6B2;font-weight:600">Nota:</span> Esta respuesta es un resumen basado en los fragmentos mas relevantes de la normativa. ' +
+      'Las resoluciones y articulos citados contienen informacion adicional importante (plazos, porcentajes, casilleros, excepciones) que por limites de procesamiento no se muestra completa. ' +
+      '<strong style="color:#fff">Se recomienda consultar el texto completo de las resoluciones mencionadas</strong> haciendo clic en ellas abajo.' +
+      '</div>';
+    messages.innerHTML += '<div class="chat-msg ai"><div class="chat-bubble">' + formatAIResponse(aiResponse) + disclaimerHtml + '</div>' + sourcesHtml + '</div>';
 
   } catch(e) {
     var typing = document.getElementById('typingIndicator');
