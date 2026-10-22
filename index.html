@@ -242,6 +242,22 @@ body { font-family: var(--font); background: var(--n50); color: var(--n900); lin
 .filter-chip.active { background: var(--navy); color: var(--white); border-color: var(--navy); }
 .filter-chip .count { font-size: 11px; opacity: .5; }
 
+/* ── Category Tabs ── */
+.cat-tabs { display: flex; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; }
+.cat-tab {
+  padding: 8px 18px; border-radius: 10px; font: 600 13px var(--font); cursor: pointer;
+  border: 1.5px solid var(--n100); background: var(--white); color: var(--n700);
+  transition: all .2s; display: flex; align-items: center; gap: 8px;
+  box-shadow: 0 1px 2px rgba(2,51,101,.03);
+}
+.cat-tab:hover { border-color: var(--navy); color: var(--navy); box-shadow: var(--shadow); }
+.cat-tab.active { background: var(--navy); color: var(--white); border-color: var(--navy); box-shadow: var(--shadow-md); }
+.cat-tab .cat-count {
+  font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 6px;
+  background: rgba(0,0,0,.08); min-width: 24px; text-align: center;
+}
+.cat-tab.active .cat-count { background: rgba(255,255,255,.2); }
+
 /* ── Filters Bar ── */
 .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
 select.filter-select {
@@ -622,7 +638,43 @@ let filteredData = [];
 let currentView = 'dashboard';
 let currentPage = 1;
 const PAGE_SIZE = 30;
-let filters = { tema: '', anio: '', vigente: '', search: '', anioDesde: '', anioHasta: '' };
+let filters = { tema: '', anio: '', vigente: '', search: '', anioDesde: '', anioHasta: '', categoria: '' };
+
+// ── Clasificación de resoluciones por categoría ──
+var CATEGORIAS = [
+  { id: '', label: 'Todas', icon: '📋' },
+  { id: 'circulares', label: 'Circulares', icon: '📨' },
+  { id: 'codigo', label: 'Código Tributario', icon: '⚖️' },
+  { id: 'lrti', label: 'Ley Régimen Tributario', icon: '📜' },
+  { id: 'reglamento', label: 'Reglamento LRTI', icon: '📑' },
+  { id: 'resoluciones', label: 'Otras Resoluciones', icon: '📄' }
+];
+
+function classifyResolucion(r) {
+  var num = (r.numero || '').toUpperCase();
+  var archivo = (r.archivo || '').toUpperCase();
+  var text = ((r.temas||[]).join(' ') + ' ' + (r.palabras_clave||'') + ' ' + (r.titulo||'')).toLowerCase();
+
+  // Circulares: prefijo DGECCGC en número o archivo
+  if (num.indexOf('DGECCGC') > -1 || archivo.indexOf('DGECCGC') > -1) return 'circulares';
+
+  // Código Tributario: por nombre de archivo o contenido
+  if (archivo.indexOf('CODIGO') > -1 && archivo.indexOf('TRIBUTARIO') > -1) return 'codigo';
+  if (text.indexOf('codigo tributario') > -1 || text.indexOf('código tributario') > -1) return 'codigo';
+
+  // Reglamento LRTI: verificar antes de LRTI para evitar falsos positivos
+  if (archivo.indexOf('REGLAMENTO') > -1 && (archivo.indexOf('REGIMEN') > -1 || archivo.indexOf('APLICACION') > -1)) return 'reglamento';
+  if (archivo.indexOf('REGLAMENTO') > -1 && archivo.indexOf('COMPROBANTES') > -1) return 'reglamento';
+
+  // Ley de Régimen Tributario Interno (LRTI / LORTI)
+  if (archivo.indexOf('LEY_DE_R') > -1 || archivo.indexOf('LORTI') > -1 || archivo.indexOf('LRTI') > -1) return 'lrti';
+  if (archivo.indexOf('LEY-DE-COMPANIAS') > -1 || archivo.indexOf('LEY_DE_COMPANIAS') > -1) return 'lrti';
+  if (text.indexOf('régimen tributario') > -1 || text.indexOf('regimen tributario') > -1 ||
+      text.indexOf('lrti') > -1 || text.indexOf('lorti') > -1) return 'lrti';
+
+  // Resoluciones generales: NAC-DGERCGC y el resto
+  return 'resoluciones';
+}
 
 // ── Supabase REST Helper ──
 async function sbFetch(path, opts = {}) {
@@ -770,6 +822,26 @@ function renderNormativa(c) {
   var start = (currentPage - 1) * PAGE_SIZE;
   var pageData = filteredData.slice(start, start + PAGE_SIZE);
 
+  // Count per category
+  var catCounts = {};
+  allData.forEach(function(r) {
+    var cat = classifyResolucion(r);
+    catCounts[cat] = (catCounts[cat] || 0) + 1;
+  });
+  catCounts[''] = allData.length;
+
+  // Category tabs
+  var tabsHtml = '<div class="cat-tabs">';
+  CATEGORIAS.forEach(function(cat) {
+    var count = catCounts[cat.id] || 0;
+    if (cat.id === '' || count > 0) {
+      var active = filters.categoria === cat.id ? ' active' : '';
+      tabsHtml += '<div class="cat-tab' + active + '" onclick="filters.categoria=\'' + cat.id + '\';currentPage=1;renderNormativa(document.getElementById(\'content\'))">' +
+        cat.icon + ' ' + cat.label + ' <span class="cat-count">' + count + '</span></div>';
+    }
+  });
+  tabsHtml += '</div>';
+
   // Unique temas and anios
   var temasSet = {}; var aniosSet = {};
   allData.forEach(function(r) {
@@ -779,7 +851,7 @@ function renderNormativa(c) {
   var temas = Object.keys(temasSet).sort();
   var anios = Object.keys(aniosSet).sort().reverse();
 
-  var filtersHtml = '<div class="filters">' +
+  var filtersHtml = tabsHtml + '<div class="filters">' +
     '<select class="filter-select" id="fTema" onchange="filters.tema=this.value;currentPage=1;renderNormativa(document.getElementById(\'content\'))">' +
     '<option value="">Todos los temas</option>' +
     temas.map(function(t) { return '<option value="' + t + '"' + (filters.tema===t?' selected':'') + '>' + t + '</option>'; }).join('') +
@@ -864,7 +936,7 @@ function changePage(p) {
 }
 
 function clearFilters() {
-  filters = { tema: '', anio: '', vigente: '', search: '', anioDesde: '', anioHasta: '' };
+  filters = { tema: '', anio: '', vigente: '', search: '', anioDesde: '', anioHasta: '', categoria: '' };
   document.getElementById('searchInput').value = '';
   allData.forEach(function(r) { r._matchedArticles = ''; r._ftsRank = -1; });
   currentPage = 1;
@@ -873,6 +945,7 @@ function clearFilters() {
 
 function applyFilters() {
   filteredData = allData.filter(function(r) {
+    if (filters.categoria && classifyResolucion(r) !== filters.categoria) return false;
     if (filters.tema && !(r.temas||[]).includes(filters.tema)) return false;
     if (filters.anio && r.anio !== filters.anio) return false;
     if (filters.vigente === 'true' && !r.vigente) return false;
@@ -1058,7 +1131,6 @@ async function searchRelevant(query) {
     });
     if (res.ok) {
       results = await res.json();
-      // Limit to top 15 most relevant
       results = results.slice(0, 15);
     }
   } catch(e) { console.warn('FTS error:', e); }
@@ -1071,7 +1143,6 @@ async function searchRelevant(query) {
       return words.some(function(w) { return haystack.indexOf(w) > -1; });
     }).slice(0, 15);
 
-    // Merge without duplicates
     var ids = new Set(results.map(function(r) { return r.id; }));
     localMatches.forEach(function(r) {
       if (!ids.has(r.id)) { results.push(r); ids.add(r.id); }
@@ -1085,24 +1156,93 @@ async function searchRelevant(query) {
     return db.localeCompare(da);
   });
 
+  results = results.slice(0, 15);
+
+  // Fetch articles for the top results (the actual content of the norms)
+  if (results.length > 0) {
+    try {
+      var resIds = results.slice(0, 10).map(function(r) { return r.id; });
+      var artUrl = SUPABASE_URL + '/rest/v1/articulos?resolucion_id=in.(' + resIds.join(',') + ')&order=orden.asc&limit=200';
+      var artRes = await fetch(artUrl, {
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Accept': 'application/json' }
+      });
+      if (artRes.ok) {
+        var articulos = await artRes.json();
+        // Group articles by resolucion_id
+        var artMap = {};
+        articulos.forEach(function(a) {
+          if (!artMap[a.resolucion_id]) artMap[a.resolucion_id] = [];
+          artMap[a.resolucion_id].push(a);
+        });
+        // Attach to results
+        results.forEach(function(r) { r._articulos = artMap[r.id] || []; });
+      }
+    } catch(e) { console.warn('Articles fetch error:', e); }
+
+    // Also search articles by keyword for additional matches
+    try {
+      var words = query.split(/\s+/).filter(function(w) { return w.length > 2; });
+      if (words.length > 0) {
+        var searchTerm = '%' + words.join('%') + '%';
+        var artSearchUrl = SUPABASE_URL + '/rest/v1/articulos?contenido=ilike.' + encodeURIComponent(searchTerm) + '&limit=30&select=resolucion_id,numero,titulo,contenido';
+        var artSearchRes = await fetch(artSearchUrl, {
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Accept': 'application/json' }
+        });
+        if (artSearchRes.ok) {
+          var matchedArts = await artSearchRes.json();
+          // Find resoluciones that match via articles but weren't in results
+          var existingIds = new Set(results.map(function(r) { return r.id; }));
+          var newIds = new Set();
+          matchedArts.forEach(function(a) {
+            if (!existingIds.has(a.resolucion_id)) newIds.add(a.resolucion_id);
+          });
+          // Add those resoluciones from allData
+          if (newIds.size > 0) {
+            allData.forEach(function(r) {
+              if (newIds.has(r.id)) {
+                r._articulos = matchedArts.filter(function(a) { return a.resolucion_id === r.id; });
+                r._matchedByContent = true;
+                results.push(r);
+              }
+            });
+          }
+        }
+      }
+    } catch(e) { console.warn('Article search error:', e); }
+  }
+
   return results.slice(0, 15);
 }
 
 function buildContext(resoluciones, query) {
   var ctx = 'Eres un asistente tributario experto en normativa ecuatoriana del SRI. ' +
-    'Responde basandote UNICAMENTE en las resoluciones proporcionadas. ' +
+    'Responde basandote UNICAMENTE en las resoluciones y articulos proporcionados. ' +
+    'Cuando la pregunta sea sobre porcentajes, casilleros, codigos o procedimientos especificos, ' +
+    'cita textualmente el articulo relevante y da la respuesta concreta. ' +
     'Organiza tu respuesta de lo mas reciente a lo mas antiguo. ' +
-    'Si una resolucion deroga o reforma otra, mencionalo. ' +
-    'Cita los numeros de resolucion cuando hagas referencia a ellas. ' +
-    'Responde en espanol de forma clara y concisa.\n\n';
+    'Si una resolucion deroga o reforma otra, mencionalo claramente. ' +
+    'Cita los numeros de resolucion y articulos cuando hagas referencia a ellos. ' +
+    'Responde en espanol de forma clara, precisa y practica.\n\n';
 
-  ctx += 'RESOLUCIONES RELEVANTES:\n';
+  var catLabels = { circulares: 'Circular', codigo: 'Codigo Tributario', lrti: 'Ley Regimen Tributario Interno', reglamento: 'Reglamento LRTI', resoluciones: 'Resolucion General' };
+  ctx += 'NORMATIVA RELEVANTE:\n';
   resoluciones.forEach(function(r, i) {
-    ctx += '\n[' + (i+1) + '] ' + r.numero + ' (' + (r.anio||'s/f') + ')' +
-      ' — Estado: ' + (r.vigente ? 'VIGENTE' : 'DEROGADA/REFORMADA') +
-      '\nTitulo: ' + (r.titulo || r.palabras_clave || 'Sin titulo') +
-      '\nTemas: ' + (r.temas||[]).join(', ') +
-      '\nPalabras clave: ' + (r.palabras_clave || '') + '\n';
+    var cat = classifyResolucion(r);
+    ctx += '\n=== [' + (i+1) + '] ' + r.numero + ' (' + (r.anio||'s/f') + ') ===\n' +
+      'Tipo: ' + (catLabels[cat]||'Resolucion') +
+      ' | Estado: ' + (r.vigente ? 'VIGENTE' : 'DEROGADA/REFORMADA') + '\n' +
+      'Titulo: ' + (r.titulo || r.palabras_clave || 'Sin titulo') + '\n' +
+      'Temas: ' + (r.temas||[]).join(', ') + '\n';
+
+    // Include article content (this is the key improvement)
+    if (r._articulos && r._articulos.length > 0) {
+      ctx += 'ARTICULOS:\n';
+      r._articulos.forEach(function(art) {
+        var content = (art.contenido || '').substring(0, 800);
+        ctx += '  Art. ' + (art.numero||'s/n') + (art.titulo ? ' - ' + art.titulo : '') + ':\n';
+        ctx += '  ' + content + (art.contenido && art.contenido.length > 800 ? '...' : '') + '\n';
+      });
+    }
   });
 
   return ctx;
