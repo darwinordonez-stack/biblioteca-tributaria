@@ -221,15 +221,7 @@ select.filter-select:focus { outline: none; border-color: var(--green); }
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10A15.3 15.3 0 0112 2z"/></svg>
         Fiscalidad Intl.
       </div>
-      <div class="nav-sep"></div>
-      <div class="nav-item" data-view="sync">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-        Sincronizar SRI
-      </div>
-      <div class="nav-item" data-view="config">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.32 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-        Configuracion
-      </div>
+      <!-- Sync y Config solo en admin.html -->
     </div>
     <div class="sidebar-footer">v2.0 — Supabase + GitHub Pages</div>
   </nav>
@@ -356,7 +348,7 @@ async function init() {
     showView('dashboard');
   } catch(e) {
     console.error(e);
-    showView('config');
+    document.getElementById('content').innerHTML = '<div style="text-align:center;padding:60px 20px;color:#4a5568;"><h2 style="color:#023365;">Error de conexion</h2><p style="margin-top:12px;">No se pudo cargar los datos. Verifica tu conexion a internet e intenta de nuevo.</p><button onclick="init()" style="margin-top:20px;padding:10px 24px;background:#00E6B2;color:#011A33;border:none;border-radius:8px;font-weight:600;cursor:pointer;">Reintentar</button></div>';
   }
 }
 
@@ -376,8 +368,7 @@ function showView(view) {
     case 'dashboard': renderDashboard(c); break;
     case 'normativa': renderNormativa(c); break;
     case 'fiscalidad': renderFiscalidad(c); break;
-    case 'sync': renderSync(c); break;
-    case 'config': renderConfig(c); break;
+    // sync y config movidos a admin.html
   }
 }
 
