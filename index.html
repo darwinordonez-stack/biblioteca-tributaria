@@ -1215,10 +1215,11 @@ async function searchRelevant(query) {
 
     // Also search articles by keyword for additional matches
     try {
-      var words = query.split(/\s+/).filter(function(w) { return w.length > 2; });
+      var words = query.split(/\s+/).filter(function(w) { return w.length > 3; });
       if (words.length > 0) {
-        var searchTerm = '%' + words.join('%') + '%';
-        var artSearchUrl = SUPABASE_URL + '/rest/v1/articulos?contenido=ilike.' + encodeURIComponent(searchTerm) + '&limit=30&select=resolucion_id,numero,titulo,contenido';
+        // Search for each significant word individually to find more matches
+        var searchTerms = words.slice(0, 3).map(function(w) { return 'contenido=ilike.*' + encodeURIComponent(w) + '*'; });
+        var artSearchUrl = SUPABASE_URL + '/rest/v1/articulos?' + searchTerms.join('&') + '&limit=50&select=resolucion_id,numero,titulo,contenido';
         var artSearchRes = await fetch(artSearchUrl, {
           headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Accept': 'application/json' }
         });
@@ -1286,14 +1287,16 @@ function searchConsultas(query) {
 }
 
 function buildContext(resoluciones, query) {
-  var ctx = 'Eres un asistente tributario experto en normativa ecuatoriana del SRI. ' +
+  var ctx = 'Eres un asistente tributario experto en normativa ecuatoriana del SRI, especializado en el area contable y tributaria de Kushki (agregador/pasarela de pagos). ' +
     'Responde basandote UNICAMENTE en la informacion proporcionada (resoluciones, articulos, convenios CDI, consultas vinculantes). ' +
-    'Cuando la pregunta sea sobre porcentajes, casilleros, codigos o procedimientos especificos, ' +
-    'cita textualmente el articulo relevante y da la respuesta concreta. ' +
-    'Organiza tu respuesta de lo mas reciente a lo mas antiguo. ' +
-    'Si una resolucion deroga o reforma otra, mencionalo claramente. ' +
-    'Cita los numeros de resolucion y articulos cuando hagas referencia a ellos. ' +
-    'Responde en espanol de forma clara, precisa y practica.\n\n';
+    'REGLAS IMPORTANTES:\n' +
+    '1. Cuando la pregunta sea sobre porcentajes, casilleros, codigos o procedimientos especificos, CITA TEXTUALMENTE el articulo relevante con el numero exacto de porcentaje, casillero o codigo.\n' +
+    '2. Si encuentras tablas o listas con porcentajes de retencion, incluyelas COMPLETAS en tu respuesta.\n' +
+    '3. Organiza tu respuesta de lo mas reciente a lo mas antiguo.\n' +
+    '4. Si una resolucion deroga o reforma otra, mencionalo claramente.\n' +
+    '5. Cita SIEMPRE el numero de resolucion y articulo especifico.\n' +
+    '6. Si la informacion esta en los articulos, extrae los datos concretos (porcentajes, plazos, montos, casilleros del formulario).\n' +
+    '7. Responde en espanol de forma clara, precisa y practica.\n\n';
 
   // Normativa (resoluciones, circulares, leyes, reglamentos, código)
   var catLabels = { circulares: 'Circular', codigo: 'Codigo Tributario', leyes: 'Ley', reglamentos: 'Reglamento', resoluciones: 'Resolucion' };
@@ -1310,9 +1313,9 @@ function buildContext(resoluciones, query) {
       if (r._articulos && r._articulos.length > 0) {
         ctx += 'ARTICULOS:\n';
         r._articulos.forEach(function(art) {
-          var content = (art.contenido || '').substring(0, 800);
+          var content = (art.contenido || '').substring(0, 2000);
           ctx += '  Art. ' + (art.numero||'s/n') + (art.titulo ? ' - ' + art.titulo : '') + ':\n';
-          ctx += '  ' + content + (art.contenido && art.contenido.length > 800 ? '...' : '') + '\n';
+          ctx += '  ' + content + (art.contenido && art.contenido.length > 2000 ? '...' : '') + '\n';
         });
       }
     });
@@ -1353,8 +1356,8 @@ async function callGemini(context, query) {
       ]
     }],
     generationConfig: {
-      temperature: 0.3,
-      maxOutputTokens: 2048
+      temperature: 0.2,
+      maxOutputTokens: 4096
     }
   };
 
