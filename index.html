@@ -1340,7 +1340,7 @@ function buildContext(resoluciones, query) {
       if (r._articulos && r._articulos.length > 0) {
         ctx += 'ARTICULOS:\n';
         r._articulos.forEach(function(art) {
-          var content = (art.contenido || '').substring(0, 2000);
+          var content = (art.contenido || '').substring(0, 1200);
           ctx += '  Art. ' + (art.numero||'s/n') + (art.titulo ? ' - ' + art.titulo : '') + ':\n';
           ctx += '  ' + content + (art.contenido && art.contenido.length > 2000 ? '...' : '') + '\n';
         });
@@ -1376,13 +1376,13 @@ function buildContext(resoluciones, query) {
 
 async function callGemini(context, query) {
   var body = {
-    model: 'openai/gpt-oss-120b',
+    model: 'openai/gpt-oss-20b',
     messages: [
       { role: 'system', content: context },
       { role: 'user', content: query }
     ],
     temperature: 0.2,
-    max_tokens: 4096
+    max_tokens: 2048
   };
 
   var res = await fetch(GROQ_URL, {
