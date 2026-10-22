@@ -551,7 +551,7 @@ select.filter-select:focus { outline: none; border-color: var(--green); box-shad
         Darth Vader
       </div>
     </div>
-    <div class="sidebar-footer">v4.0 — Supabase + Groq AI</div>
+    <div class="sidebar-footer">v4.1 — Supabase + Groq AI</div>
   </nav>
 
   <!-- Main Content -->
@@ -1087,14 +1087,19 @@ async function sendChat() {
   messages.scrollTop = messages.scrollHeight;
 
   try {
+    console.log('[v4.1] Starting search...');
     // 1. Search relevant resoluciones
     var relevant = await searchRelevant(query);
+    console.log('[v4.1] Found', relevant.length, 'results');
 
     // 2. Build context for Gemini
     var context = buildContext(relevant, query);
+    console.log('[v4.1] Context length:', context.length, 'chars (~' + Math.round(context.length/4) + ' tokens)');
 
-    // 3. Call Gemini API
+    // 3. Call Groq API
+    console.log('[v4.1] Calling Groq...');
     var aiResponse = await callGemini(context, query);
+    console.log('[v4.1] AI response length:', (aiResponse||'').length, 'chars');
 
     // Remove typing indicator
     var typing = document.getElementById('typingIndicator');
@@ -1362,14 +1367,28 @@ async function callGemini(context, query) {
     max_tokens: 512
   };
 
-  var res = await fetch(GROQ_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + GROQ_KEY
-    },
-    body: JSON.stringify(body)
-  });
+  console.log('[v4.1] Groq request - model:', body.model, 'system:', context.length, 'chars, query:', query.length, 'chars');
+
+  var controller = new AbortController();
+  var timeout = setTimeout(function() { controller.abort(); }, 30000);
+
+  var res;
+  try {
+    res = await fetch(GROQ_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + GROQ_KEY
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal
+    });
+  } catch(fetchErr) {
+    clearTimeout(timeout);
+    if (fetchErr.name === 'AbortError') throw new Error('El asistente tardo demasiado (30s). Intenta de nuevo.');
+    throw fetchErr;
+  }
+  clearTimeout(timeout);
 
   if (!res.ok) {
     var errText = await res.text();
