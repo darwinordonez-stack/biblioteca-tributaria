@@ -533,15 +533,21 @@ select.filter-select:focus { outline: none; border-color: var(--green); box-shad
         Dashboard
       </div>
       <div class="nav-item" data-view="normativa">
-        <img src="icon-normativa.jpg" alt="" style="width:22px;height:22px;border-radius:4px">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;background:#00E6B2;border-radius:6px;flex-shrink:0">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#011A33" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        </span>
         Normativa
       </div>
       <div class="nav-item" data-view="fiscalidad">
-        <img src="icon-fiscalidad.jpg" alt="" style="width:22px;height:22px;border-radius:4px">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;background:#00E6B2;border-radius:6px;flex-shrink:0">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#011A33" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10A15.3 15.3 0 0112 2z"/></svg>
+        </span>
         Fiscalidad Internacional
       </div>
       <div class="nav-item" data-view="consultas">
-        <img src="icon-consultas.jpg" alt="" style="width:22px;height:22px;border-radius:4px">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;background:#00E6B2;border-radius:6px;flex-shrink:0">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#011A33" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="14" r="8"/><path d="M9.5 12a2.5 2.5 0 015 0c0 1.5-2.5 2-2.5 3.5"/><circle cx="12" cy="18" r=".5" fill="#011A33"/></svg>
+        </span>
         Consultas Vinculantes
       </div>
       <!-- Sync y Config solo en admin.html -->
@@ -551,7 +557,7 @@ select.filter-select:focus { outline: none; border-color: var(--green); box-shad
         Darth Vader
       </div>
     </div>
-    <div class="sidebar-footer">v4.4 — Supabase + Groq AI</div>
+    <div class="sidebar-footer">v4.5 — Supabase + Groq AI</div>
   </nav>
 
   <!-- Main Content -->
@@ -1242,23 +1248,50 @@ async function searchRelevant(query) {
   var sorted = Object.values(resultMap).sort(function(a, b) { return b.score - a.score; });
   var results = sorted.slice(0, 8).map(function(s) { return s.res; });
 
-  // 5) Fetch full articles for top 5 that don't have articles yet
-  var needArts = results.slice(0, 5).filter(function(r) { return !r._articulos || r._articulos.length === 0; });
-  if (needArts.length > 0) {
+  // 5) Fetch articles for top 5: search by CONTENT relevance, not just order
+  var top5 = results.slice(0, 5);
+  if (top5.length > 0) {
     try {
-      var resIds = needArts.map(function(r) { return r.id; });
-      var artUrl = SUPABASE_URL + '/rest/v1/articulos?resolucion_id=in.(' + resIds.join(',') + ')&order=orden.asc&limit=50';
-      var artRes = await fetch(artUrl, {
-        headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Accept': 'application/json' }
-      });
-      if (artRes.ok) {
-        var articulos = await artRes.json();
-        var artMap = {};
-        articulos.forEach(function(a) {
-          if (!artMap[a.resolucion_id]) artMap[a.resolucion_id] = [];
-          artMap[a.resolucion_id].push(a);
+      // First: fetch articles matching query keywords for these specific resolutions
+      var resIds = top5.map(function(r) { return r.id; });
+      var queryWords = words.filter(function(w) { return w.length > 4; });
+
+      for (var qi = 0; qi < Math.min(queryWords.length, 3); qi++) {
+        var smartUrl = SUPABASE_URL + '/rest/v1/articulos?resolucion_id=in.(' + resIds.join(',') + ')&or=(contenido.ilike.' + encodeURIComponent('%' + queryWords[qi] + '%') + ',titulo.ilike.' + encodeURIComponent('%' + queryWords[qi] + '%') + ')&limit=20&select=resolucion_id,numero,titulo,contenido';
+        var smartRes = await fetch(smartUrl, {
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Accept': 'application/json' }
         });
-        needArts.forEach(function(r) { r._articulos = artMap[r.id] || []; });
+        if (smartRes.ok) {
+          var smartArts = await smartRes.json();
+          smartArts.forEach(function(a) {
+            var r = top5.find(function(x) { return x.id == a.resolucion_id; });
+            if (r) {
+              if (!r._articulos) r._articulos = [];
+              if (!r._articulos.some(function(x) { return x.numero === a.numero && x.resolucion_id === a.resolucion_id; })) {
+                r._articulos.push(a);
+              }
+            }
+          });
+        }
+      }
+
+      // Also fetch first few articles for resolutions that still have none
+      var needArts = top5.filter(function(r) { return !r._articulos || r._articulos.length === 0; });
+      if (needArts.length > 0) {
+        var needIds = needArts.map(function(r) { return r.id; });
+        var artUrl = SUPABASE_URL + '/rest/v1/articulos?resolucion_id=in.(' + needIds.join(',') + ')&order=orden.asc&limit=30';
+        var artRes = await fetch(artUrl, {
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Accept': 'application/json' }
+        });
+        if (artRes.ok) {
+          var articulos = await artRes.json();
+          var artMap = {};
+          articulos.forEach(function(a) {
+            if (!artMap[a.resolucion_id]) artMap[a.resolucion_id] = [];
+            artMap[a.resolucion_id].push(a);
+          });
+          needArts.forEach(function(r) { r._articulos = artMap[r.id] || []; });
+        }
       }
     } catch(e) { console.warn('Articles fetch error:', e); }
   }
@@ -1321,11 +1354,25 @@ function buildContext(resoluciones, query) {
         'Temas: ' + (r.temas||[]).join(', ') + '\n';
 
       if (r._articulos && r._articulos.length > 0) {
-        ctx += 'ARTICULOS:\n';
-        r._articulos.slice(0, 3).forEach(function(art) {
-          var content = (art.contenido || '').substring(0, 300);
+        // Prioritize articles that match the query terms
+        var qWords = query.toLowerCase().split(/\s+/).filter(function(w) { return w.length > 3; });
+        var scored = r._articulos.map(function(art) {
+          var hay = ((art.titulo||'') + ' ' + (art.contenido||'')).toLowerCase();
+          var hits = 0;
+          qWords.forEach(function(w) { if (hay.indexOf(w) > -1) hits++; });
+          return { art: art, hits: hits };
+        });
+        // Sort: most matching first, then by original order
+        scored.sort(function(a, b) { return b.hits - a.hits; });
+        var topArts = scored.slice(0, 4).filter(function(s) { return s.hits > 0 || scored[0].hits === 0; });
+        if (topArts.length === 0) topArts = scored.slice(0, 3);
+
+        ctx += 'ARTICULOS RELEVANTES:\n';
+        topArts.forEach(function(s) {
+          var art = s.art;
+          var content = (art.contenido || '').substring(0, 400);
           ctx += '  Art. ' + (art.numero||'s/n') + (art.titulo ? ' - ' + art.titulo : '') + ':\n';
-          ctx += '  ' + content + (content.length >= 300 ? '...' : '') + '\n';
+          ctx += '  ' + content + (content.length >= 400 ? '...' : '') + '\n';
         });
       }
     });
