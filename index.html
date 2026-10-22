@@ -483,6 +483,10 @@ select.filter-select:focus { outline: none; border-color: var(--green); box-shad
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10A15.3 15.3 0 0112 2z"/></svg>
         Fiscalidad Intl.
       </div>
+      <div class="nav-item" data-view="consultas">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        Consultas Vinculantes
+      </div>
       <!-- Sync y Config solo en admin.html -->
     </div>
     <div class="sidebar-footer">v3.0 — Supabase + GitHub Pages</div>
@@ -661,6 +665,7 @@ function showView(view) {
     case 'dashboard': renderDashboard(c); break;
     case 'normativa': renderNormativa(c); break;
     case 'fiscalidad': renderFiscalidad(c); break;
+    case 'consultas': renderConsultas(c); break;
     // sync y config movidos a admin.html
   }
 }
@@ -736,7 +741,7 @@ function renderNormativa(c) {
     temas.map(function(t) { return '<option value="' + t + '"' + (filters.tema===t?' selected':'') + '>' + t + '</option>'; }).join('') +
     '</select>' +
     '<select class="filter-select" id="fAnio" onchange="filters.anio=this.value;currentPage=1;renderNormativa(document.getElementById(\'content\'))">' +
-    '<option value="">Todos los anos</option>' +
+    '<option value="">Todos los años</option>' +
     anios.map(function(a) { return '<option value="' + a + '"' + (filters.anio===a?' selected':'') + '>' + a + '</option>'; }).join('') +
     '</select>' +
     '<select class="filter-select" id="fVigente" onchange="filters.vigente=this.value;currentPage=1;renderNormativa(document.getElementById(\'content\'))">' +
@@ -745,11 +750,11 @@ function renderNormativa(c) {
     '<option value="false"' + (filters.vigente==='false'?' selected':'') + '>Derogadas</option>' +
     '</select>' +
     '<select class="filter-select" style="min-width:90px" onchange="filters.anioDesde=this.value;currentPage=1;renderNormativa(document.getElementById(\'content\'))">' +
-    '<option value="">Desde ano</option>' +
+    '<option value="">Desde año</option>' +
     anios.slice().reverse().map(function(a) { return '<option value="' + a + '"' + (filters.anioDesde===a?' selected':'') + '>' + a + '</option>'; }).join('') +
     '</select>' +
     '<select class="filter-select" style="min-width:90px" onchange="filters.anioHasta=this.value;currentPage=1;renderNormativa(document.getElementById(\'content\'))">' +
-    '<option value="">Hasta ano</option>' +
+    '<option value="">Hasta año</option>' +
     anios.map(function(a) { return '<option value="' + a + '"' + (filters.anioHasta===a?' selected':'') + '>' + a + '</option>'; }).join('') +
     '</select>';
 
@@ -791,7 +796,7 @@ function renderNormativa(c) {
 
   c.innerHTML = filtersHtml +
     '<div class="table-wrap">' +
-    '<div class="table-header"><div>Resolucion</div><div>Tema</div><div>Ano</div><div>Publicacion</div><div>Estado</div><div>PDF</div></div>' +
+    '<div class="table-header"><div>Resolucion</div><div>Tema</div><div>Año</div><div>Publicación</div><div>Estado</div><div>PDF</div></div>' +
     rowsHtml + pagHtml + '</div>';
 }
 
@@ -890,6 +895,55 @@ function renderFiscalidad(c) {
       var linkHtml = cd.archivo && driveId ? '<a class="cdi-link" href="https://drive.google.com/file/d/' + driveId + '/view" target="_blank">Ver PDF</a>' : '';
       html += '<div class="cdi-card"><div><div class="cdi-pais">' + cd.pais + '</div>' +
         '<div class="cdi-tipo">' + (cd.tipo||'CDI') + (cd.vigente ? ' &middot; Vigente' : ' &middot; No vigente') + '</div></div>' + linkHtml + '</div>';
+    });
+    html += '</div>';
+  }
+  c.innerHTML = html;
+}
+
+// ── Consultas Vinculantes ──
+function renderConsultas(c) {
+  var consultaFiles = driveFiles.consulta || {};
+  var items = [];
+  for (var name in consultaFiles) {
+    // Extract year from filename
+    var yearMatch = name.match(/(\d{4})/);
+    var year = yearMatch ? yearMatch[1] : '0000';
+    // Extract period
+    var period = '';
+    if (/enero\s*-?\s*(junio|julio)/i.test(name)) period = name.match(/enero\s*-?\s*(junio|julio)/i)[0];
+    else if (/julio\s*-?\s*diciembre/i.test(name)) period = 'julio - diciembre';
+    else if (/enero\s*-?\s*diciembre/i.test(name)) period = 'enero - diciembre';
+    else if (/ISEM/i.test(name)) period = '1er semestre';
+    else if (/IISEM/i.test(name)) period = '2do semestre';
+    items.push({ name: name, driveId: consultaFiles[name], year: year, period: period });
+  }
+  // Sort by year descending
+  items.sort(function(a, b) { return b.year.localeCompare(a.year) || a.name.localeCompare(b.name); });
+
+  var html = '<div class="section-title" style="margin-bottom:8px">Consultas Vinculantes</div>' +
+    '<p style="font-size:13px;color:var(--n700);margin-bottom:20px;line-height:1.6">Extractos de absoluciones de consultas tributarias formales emitidas por el SRI. Documentos organizados por periodo.</p>';
+
+  if (items.length === 0) {
+    html += '<div class="empty-state">No hay consultas vinculantes cargadas.</div>';
+  } else {
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px">';
+    items.forEach(function(item) {
+      var displayName = item.name.replace(/\.pdf$/i, '').replace(/_/g, ' ').replace(/-signed/g, '');
+      // Shorten long names
+      if (displayName.length > 60) displayName = displayName.substring(0, 57) + '...';
+      html += '<div style="background:var(--white);border-radius:var(--radius-lg);padding:20px 24px;box-shadow:var(--shadow);border-left:4px solid var(--blue-mid);transition:all .2s;cursor:pointer" ' +
+        'onclick="window.open(\'https://drive.google.com/file/d/' + item.driveId + '/preview\',\'_blank\')" ' +
+        'onmouseover="this.style.boxShadow=\'var(--shadow-md)\';this.style.transform=\'translateY(-2px)\'" ' +
+        'onmouseout="this.style.boxShadow=\'var(--shadow)\';this.style.transform=\'none\'">' +
+        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">' +
+        '<div style="background:var(--blue-100);color:var(--blue-mid);font-weight:700;font-size:18px;padding:8px 14px;border-radius:8px;min-width:56px;text-align:center">' + item.year + '</div>' +
+        '<div style="flex:1"><div style="font-weight:600;color:var(--navy);font-size:14px;line-height:1.4">' + displayName + '</div>' +
+        (item.period ? '<div style="font-size:12px;color:var(--n500);margin-top:2px">' + item.period + '</div>' : '') +
+        '</div></div>' +
+        '<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--green-700);font-weight:600">' +
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' +
+        'Abrir PDF</div></div>';
     });
     html += '</div>';
   }
@@ -1074,7 +1128,7 @@ function openDetail(id) {
   if (r.fecha_suscripcion) html += '<div><div class="detail-label">Fecha suscripcion</div><div class="detail-value">' + formatDate(r.fecha_suscripcion) + '</div></div>';
   if (r.fecha_publicacion) html += '<div><div class="detail-label">Fecha publicacion</div><div class="detail-value">' + formatDate(r.fecha_publicacion) + '</div></div>';
   if (r.registro_oficial) html += '<div><div class="detail-label">Registro Oficial</div><div class="detail-value">' + r.registro_oficial + '</div></div>';
-  if (r.anio) html += '<div><div class="detail-label">Ano</div><div class="detail-value">' + r.anio + '</div></div>';
+  if (r.anio) html += '<div><div class="detail-label">Año</div><div class="detail-value">' + r.anio + '</div></div>';
   html += '</div>';
 
   if (r.estado_original) html += '<div class="detail-section"><div class="detail-label">Estado original</div><div class="detail-value">' + r.estado_original + '</div></div>';
