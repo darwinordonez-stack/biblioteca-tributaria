@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Biblioteca Tributaria Kushki</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --green-500: #00E6B2; --green-700: #3B9D86; --green-900: #2D7A68;
+  --blue-900: #011A33; --blue-700: #023365; --blue-500: #0A4F8A; --blue-300: #3B7FBF; --blue-100: #D6E8F7;
+  --neutral-900: #293036; --neutral-700: #4A5568; --neutral-500: #677684; --neutral-300: #CBD5E0; --neutral-100: #EDF2F7; --neutral-50: #F7FAFC;
+  --success: #2ABA05; --warning: #FAD30A; --error: #DF4E20; --info: #0050FE;
+  --font: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --radius: 10px; --shadow: 0 2px 8px rgba(2,51,101,0.08);
+}
+::selection { background: var(--green-500); color: var(--blue-900); }
+body { font-family: var(--font); background: var(--neutral-50); color: var(--neutral-900); min-height: 100vh; display: flex; flex-direction: column; }
+
+/* ── Top Bar ── */
+.topbar { background: var(--blue-700); color: #fff; padding: 0 24px; height: 56px; display: flex; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 100; }
+.topbar svg { flex-shrink: 0; }
+.topbar h1 { font-size: 18px; font-weight: 600; }
+.topbar .badge { background: var(--green-500); color: var(--blue-900); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; margin-left: 8px; }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.conn-dot { width: 10px; height: 10px; border-radius: 50%; }
+.conn-dot.ok { background: var(--green-500); }
+.conn-dot.off { background: var(--error); }
+.topbar-btn { background: rgba(255,255,255,0.15); border: none; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: var(--font); font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.topbar-btn:hover { background: rgba(255,255,255,0.25); }
+
+/* ── Layout ── */
+.layout { display: flex; flex: 1; }
+.sidebar { width: 220px; background: var(--blue-900); color: #fff; padding: 16px 0; flex-shrink: 0; position: sticky; top: 56px; height: calc(100vh - 56px); overflow-y: auto; }
+.sidebar a { display: flex; align-items: center; gap: 10px; padding: 11px 20px; color: rgba(255,255,255,0.7); text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.15s; cursor: pointer; }
+.sidebar a:hover { color: #fff; background: rgba(255,255,255,0.08); }
+.sidebar a.active { color: var(--green-500); background: rgba(0,230,178,0.1); border-right: 3px solid var(--green-500); }
+.sidebar .section-label { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.35); padding: 20px 20px 6px; text-transform: uppercase; letter-spacing: 1px; }
+.main { flex: 1; padding: 28px 32px; max-width: 1100px; }
+
+/* ── Cards ── */
+.card { background: #fff; border: 1px solid var(--neutral-100); border-radius: var(--radius); padding: 24px; margin-bottom: 20px; box-shadow: var(--shadow); }
+.card h2 { font-size: 18px; font-weight: 600; color: var(--blue-700); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+.card h3 { font-size: 15px; font-weight: 600; color: var(--blue-700); margin-bottom: 12px; }
+
+/* ── Stats Grid ── */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px; }
+.stat-card { background: #fff; border: 1px solid var(--neutral-100); border-radius: var(--radius); padding: 20px; text-align: center; box-shadow: var(--shadow); }
+.stat-card.primary { background: var(--blue-700); color: #fff; border-color: var(--blue-700); }
+.stat-card .num { font-size: 32px; font-weight: 700; }
+.stat-card.primary .num { color: var(--green-500); }
+.stat-card .label { font-size: 12px; font-weight: 500; color: var(--neutral-500); margin-top: 4px; }
+.stat-card.primary .label { color: rgba(255,255,255,0.7); }
+
+/* ── Form ── */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-grid .full { grid-column: 1 / -1; }
+.field { margin-bottom: 0; }
+.field label { display: block; font-size: 13px; font-weight: 500; color: var(--neutral-700); margin-bottom: 5px; }
+.field input, .field select, .field textarea {
+  width: 100%; padding: 9px 12px; border: 1px solid var(--neutral-300); border-radius: 6px;
+  font-family: var(--font); font-size: 14px; color: var(--neutral-900); transition: border-color 0.15s;
+}
+.field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--green-500); box-shadow: 0 0 0 3px rgba(0,230,178,0.12); }
+.field textarea { resize: vertical; min-height: 80px; }
+.field .hint { font-size: 12px; color: var(--neutral-500); margin-top: 3px; }
+
+/* ── Chips ── */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; cursor: pointer; border: 1px solid var(--neutral-300); color: var(--neutral-700); background: #fff; transition: all 0.15s; user-select: none; }
+.chip.selected { background: var(--green-500); color: var(--blue-900); border-color: var(--green-500); font-weight: 600; }
+.chip:hover { border-color: var(--green-500); }
+
+/* ── Checkbox ── */
+.checkbox-field { display: flex; align-items: center; gap: 8px; padding-top: 24px; }
+.checkbox-field input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--green-500); }
+.checkbox-field label { margin-bottom: 0; font-size: 14px; }
+
+/* ── Buttons ── */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border: none; border-radius: 8px; font-family: var(--font); font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary { background: var(--green-500); color: var(--blue-900); }
+.btn-primary:hover:not(:disabled) { background: var(--green-700); color: #fff; }
+.btn-secondary { background: var(--blue-700); color: #fff; }
+.btn-secondary:hover:not(:disabled) { background: var(--blue-500); }
+.btn-outline { background: transparent; color: var(--blue-700); border: 2px solid var(--blue-700); padding: 8px 18px; }
+.btn-outline:hover:not(:disabled) { background: var(--blue-700); color: #fff; }
+.btn-danger { background: var(--error); color: #fff; }
+.btn-danger:hover:not(:disabled) { background: #c43a15; }
+.btn-sm { padding: 6px 14px; font-size: 13px; }
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+
+/* ── Table ── */
+.table-wrap { overflow-x: auto; margin-top: 12px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th { background: var(--neutral-100); color: var(--neutral-700); font-weight: 600; padding: 10px 12px; text-align: left; white-space: nowrap; position: sticky; top: 0; }
+tbody td { padding: 10px 12px; border-bottom: 1px solid var(--neutral-100); vertical-align: top; }
+tbody tr { cursor: pointer; transition: background 0.1s; }
+tbody tr:hover { background: rgba(0,230,178,0.06); }
+.badge-status { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+.badge-vigente { background: #E6F9E0; color: #166534; }
+.badge-derogada { background: #FDE8E0; color: #9b2c2c; }
+.badge-reformada { background: #FFF9E0; color: #744210; }
+
+/* ── Toast ── */
+.toast-container { position: fixed; top: 70px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+.toast { padding: 12px 20px; border-radius: 8px; font-size: 13px; font-weight: 500; color: #fff; box-shadow: 0 4px 16px rgba(0,0,0,0.15); animation: slideIn 0.3s ease; max-width: 400px; display: flex; align-items: center; gap: 8px; }
+.toast.success { background: var(--success); }
+.toast.error { background: var(--error); }
+.toast.info { background: var(--info); }
+@keyframes slideIn { from { transform: translateX(100px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* ── Modal ── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(1,26,51,0.6); z-index: 200; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.15s; }
+.modal { background: #fff; border-radius: 12px; padding: 28px; width: 90%; max-width: 700px; max-height: 85vh; overflow-y: auto; box-shadow: 0 12px 40px rgba(0,0,0,0.2); }
+.modal h2 { font-size: 18px; color: var(--blue-700); margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+.modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--neutral-500); padding: 4px 8px; }
+.modal-close:hover { color: var(--error); }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ── Loading ── */
+.spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--neutral-300); border-top-color: var(--green-500); border-radius: 50%; animation: spin 0.6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-overlay { position: absolute; inset: 0; background: rgba(247,250,252,0.8); display: flex; align-items: center; justify-content: center; gap: 10px; border-radius: var(--radius); z-index: 10; font-size: 14px; color: var(--neutral-700); }
+
+/* ── Compare table ── */
+.compare-new { background: #E6F9E0; }
+.compare-changed { background: #FFF9E0; }
+
+/* ── Misc ── */
+.empty-state { text-align: center; padding: 40px 20px; color: var(--neutral-500); font-size: 14px; }
+.section { display: none; }
+.section.active { display: block; }
+.recent-list { list-style: none; }
+.recent-list li { padding: 10px 0; border-bottom: 1px solid var(--neutral-100); font-size: 13px; display: flex; justify-content: space-between; }
+.recent-list li:last-child { border: none; }
+.tag { display: inline-block; background: var(--blue-100); color: var(--blue-700); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; margin-right: 4px; }
+</style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<div class="topbar">
+  <svg width="32" height="32" viewBox="0 0 36 36" fill="none"><rect width="36" height="36" rx="8" fill="#00E6B2"/><path d="M10 12h4v12h-4zM16 8h4v16h-4zM22 14h4v10h-4z" fill="#023365"/></svg>
+  <div>
+    <h1>Biblioteca Tributaria <span class="badge">ADMIN</span></h1>
+  </div>
+  <div class="topbar-right">
+    <div class="conn-dot off" id="connDot" title="No conectado"></div>
+    <button class="topbar-btn" onclick="showConnModal()">&#9881; Conexión</button>
+  </div>
+</div>
+
+<!-- Layout -->
+<div class="layout">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="section-label">General</div>
+    <a class="active" data-section="dashboard" onclick="navigate('dashboard')">&#9632; Dashboard</a>
+    <div class="section-label">Gestionar</div>
+    <a data-section="add-res" onclick="navigate('add-res')">&#10010; Agregar Resolución</a>
+    <a data-section="add-pdf" onclick="navigate('add-pdf')">&#128196; Agregar PDF</a>
+    <a data-section="search" onclick="navigate('search')">&#128269; Buscar / Editar</a>
+    <div class="section-label">Herramientas</div>
+    <a data-section="import-sri" onclick="navigate('import-sri')">&#128202; Importar Excel SRI</a>
+    <a data-section="sync-drive" onclick="navigate('sync-drive')">&#128260; Sincronizar PDFs Drive</a>
+  </nav>
+
+  <!-- Main -->
+  <div class="main">
+
+    <!-- ═══ DASHBOARD ═══ -->
+    <div id="sec-dashboard" class="section active">
+      <h2 style="font-size:22px;font-weight:700;color:var(--blue-700);margin-bottom:20px;">Dashboard</h2>
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card primary"><div class="num" id="dTotal">-</div><div class="label">Total resoluciones</div></div>
+        <div class="stat-card"><div class="num" id="dVigentes" style="color:var(--success)">-</div><div class="label">Vigentes</div></div>
+        <div class="stat-card"><div class="num" id="dDerogadas" style="color:var(--error)">-</div><div class="label">Derogadas / Reformadas</div></div>
+        <div class="stat-card"><div class="num" id="dDrive" style="color:var(--blue-500)">-</div><div class="label">PDFs vinculados</div></div>
+        <div class="stat-card"><div class="num" id="dCdi" style="color:var(--blue-300)">-</div><div class="label">CDI Convenios</div></div>
+      </div>
+      <div class="card">
+        <h3>Últimas resoluciones agregadas</h3>
+        <ul class="recent-list" id="recentList"><li class="empty-state">Conecta para ver datos</li></ul>
+      </div>
+    </div>
+
+    <!-- ═══ AGREGAR RESOLUCIÓN ═══ -->
+    <div id="sec-add-res" class="section">
+      <h2 style="font-size:22px;font-weight:700;color:var(--blue-700);margin-bottom:20px;">Agregar Resolución</h2>
+      <div class="card">
+        <div class="form-grid" id="addResForm">
+          <div class="field">
+            <label>Número *</label>
+            <input type="text" id="arNumero" placeholder="NAC-DGERCGC26-00000040" oninput="autoExtractAnio()">
+            <div class="hint">Identificador único de la resolución</div>
+          </div>
+          <div class="field">
+            <label>Tipo</label>
+            <select id="arTipo">
+              <option value="Resolucion">Resolución</option>
+              <option value="Circular">Circular</option>
+              <option value="Ley">Ley</option>
+              <option value="Reglamento">Reglamento</option>
+            </select>
+          </div>
+          <div class="field full">
+            <label>Título</label>
+            <textarea id="arTitulo" placeholder="Descripción de la resolución..."></textarea>
+          </div>
+          <div class="field">
+            <label>Año</label>
+            <input type="text" id="arAnio" placeholder="2026">
+          </div>
+          <div class="field">
+            <label>Registro Oficial</label>
+            <input type="text" id="arRO" placeholder="R.O. 123">
+          </div>
+          <div class="field">
+            <label>Fecha de suscripción</label>
+            <input type="date" id="arFechaSusc">
+          </div>
+          <div class="field">
+            <label>Fecha de publicación</label>
+            <input type="date" id="arFechaPub">
+          </div>
+          <div class="field">
+            <label>Estado original</label>
+            <select id="arEstado">
+              <option value="VIGENTE">VIGENTE</option>
+              <option value="DEROGADA">DEROGADA</option>
+              <option value="REFORMADA">REFORMADA</option>
+              <option value="SUSTITUIDA">SUSTITUIDA</option>
+            </select>
+          </div>
+          <div class="checkbox-field">
+            <input type="checkbox" id="arVigente" checked>
+            <label for="arVigente">Vigente</label>
+          </div>
+          <div class="field full">
+            <label>Temas</label>
+            <div class="chips" id="arTemasChips"></div>
+          </div>
+          <div class="field full">
+            <label>Palabras clave</label>
+            <input type="text" id="arPalabras" placeholder="RETENCIÓN, IVA, AGREGADOR, ...">
+          </div>
+          <div class="field full">
+            <label>Nombre del archivo PDF</label>
+            <input type="text" id="arArchivo" placeholder="NAC-DGERCGC26-00000040.pdf">
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="guardarResolucion()">Guardar Resolución</button>
+          <button class="btn btn-outline" onclick="limpiarFormRes()">Limpiar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ AGREGAR PDF ═══ -->
+    <div id="sec-add-pdf" class="section">
+      <h2 style="font-size:22px;font-weight:700;color:var(--blue-700);margin-bottom:20px;">Agregar PDF (Mapeo Drive)</h2>
+      <div class="card">
+        <h3>Agregar individual</h3>
+        <div class="form-grid">
+          <div class="field">
+            <label>Categoría</label>
+            <select id="pdfCat">
+              <option value="normativa">Normativa</option>
+              <option value="consulta">Consultas vinculantes</option>
+              <option value="fiscalidad">Fiscalidad Internacional</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Nombre del archivo</label>
+            <input type="text" id="pdfNombre" placeholder="NAC-DGERCGC26-00000040.pdf">
+          </div>
+          <div class="field full">
+            <label>Google Drive ID</label>
+            <input type="text" id="pdfDriveId" placeholder="1aBcDeFgHiJkLmNoPqRsT...">
+            <div class="hint">El ID se encuentra en la URL del archivo: drive.google.com/file/d/<strong>ID</strong>/view</div>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="agregarPdf()">Agregar Mapeo</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Importación masiva</h3>
+        <div class="field">
+          <label>Categoría para importación</label>
+          <select id="bulkCat">
+            <option value="normativa">Normativa</option>
+            <option value="consulta">Consultas vinculantes</option>
+            <option value="fiscalidad">Fiscalidad Internacional</option>
+          </select>
+        </div>
+        <div class="field" style="margin-top:12px;">
+          <label>Pega líneas con formato: <code>nombre_archivo|drive_id</code></label>
+          <textarea id="bulkInput" placeholder="NAC-DGERCGC26-00000040.pdf|1aBcDeFgHiJ&#10;NAC-DGERCGC26-00000041.pdf|2xYzAbCdEfG&#10;..." style="min-height:120px;font-family:'IBM Plex Mono',monospace;font-size:12px;"></textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-secondary" onclick="bulkImportPdf()">Importar Masivo</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Últimos mapeos agregados</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Categoría</th><th>Archivo</th><th>Drive ID</th></tr></thead>
+            <tbody id="recentDriveBody"><tr><td colspan="3" class="empty-state">Sin datos</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ BUSCAR / EDITAR ═══ -->
+    <div id="sec-search" class="section">
+      <h2 style="font-size:22px;font-weight:700;color:var(--blue-700);margin-bottom:20px;">Buscar / Editar Resoluciones</h2>
+      <div class="card">
+        <div style="display:flex;gap:12px;align-items:flex-end;">
+          <div class="field" style="flex:1;">
+            <label>Buscar por número o palabra clave</label>
+            <input type="text" id="searchInput" placeholder="NAC-DGERCGC26..." oninput="debounceSearch()">
+          </div>
+          <button class="btn btn-secondary" onclick="doSearch()" style="margin-bottom:0;height:38px;">Buscar</button>
+        </div>
+        <div id="searchResults" style="margin-top:16px;">
+          <div class="empty-state">Escribe algo para buscar</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ IMPORTAR EXCEL SRI ═══ -->
+    <div id="sec-import-sri" class="section">
+      <h2 style="font-size:22px;font-weight:700;color:var(--blue-700);margin-bottom:20px;">Importar Excel SRI</h2>
+      <div class="card">
+        <h3>Cargar índice de resoluciones vigentes</h3>
+        <p style="font-size:13px;color:var(--neutral-700);margin-bottom:14px;">
+          Descarga el archivo <strong>"Índice Resoluciones Vigentes Normativa"</strong> desde el sitio del SRI y selecciónalo aquí para comparar con la base de datos.
+        </p>
+        <div class="field">
+          <input type="file" id="sriFile" accept=".xls,.xlsx" style="font-size:13px;" onchange="parseSriExcel(event)">
+        </div>
+        <div id="sriStatus" style="margin-top:12px;"></div>
+      </div>
+      <div id="sriResultsCard" class="card" style="display:none;">
+        <h3>Resultados de comparación</h3>
+        <div class="stats-grid" style="margin-bottom:16px;">
+          <div class="stat-card"><div class="num" id="sriExcelCount" style="color:var(--blue-500)">0</div><div class="label">En Excel SRI</div></div>
+          <div class="stat-card"><div class="num" id="sriDbCount" style="color:var(--blue-700)">0</div><div class="label">En base de datos</div></div>
+          <div class="stat-card"><div class="num" id="sriNewCount" style="color:var(--success)">0</div><div class="label">Nuevas</div></div>
+          <div class="stat-card"><div class="num" id="sriChangedCount" style="color:var(--warning)">0</div><div class="label">Estado cambiado</div></div>
+        </div>
+        <div id="sriNewSection" style="display:none;">
+          <h3 style="color:var(--success);">Resoluciones nuevas (no están en la BD)</h3>
+          <div class="table-wrap">
+            <table><thead><tr><th>Número</th><th>Estado</th><th>Palabras clave</th><th>Acción</th></tr></thead>
+            <tbody id="sriNewBody"></tbody></table>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary" onclick="addAllNew()">Agregar todas las nuevas</button>
+          </div>
+        </div>
+        <div id="sriChangedSection" style="display:none;margin-top:20px;">
+          <h3 style="color:#744210;">Cambios de estado detectados</h3>
+          <div class="table-wrap">
+            <table><thead><tr><th>Número</th><th>Estado BD</th><th>Estado Excel</th><th>Acción</th></tr></thead>
+            <tbody id="sriChangedBody"></tbody></table>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-secondary" onclick="applyAllChanges()">Aplicar todos los cambios</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ SYNC DRIVE ═══ -->
+    <div id="sec-sync-drive" class="section">
+      <h2 style="font-size:22px;font-weight:700;color:var(--blue-700);margin-bottom:20px;">Sincronizar PDFs de Google Drive</h2>
+      <div class="card">
+        <h3>Configuración de carpeta Drive</h3>
+        <p style="font-size:13px;color:var(--neutral-700);margin-bottom:14px;">
+          Ingresa el ID de la carpeta de Google Drive donde están los PDFs. El sistema comparará los archivos de Drive con los registrados en Supabase y mostrará los que faltan.
+        </p>
+        <div class="field" style="margin-bottom:14px;">
+          <label style="font-size:12px;font-weight:600;color:var(--neutral-700);display:block;margin-bottom:4px;">ID de carpeta de Drive</label>
+          <input type="text" id="driveFolderId" value="1pBgZQajyvvwPALfQvubblaeEx5J7rr25" style="width:100%;height:38px;border:1.5px solid var(--neutral-300);border-radius:8px;padding:0 12px;font:13px var(--font);" />
+        </div>
+        <p style="font-size:12px;color:var(--neutral-500);margin-bottom:16px;">
+          <strong>Nota:</strong> Esta herramienta no puede leer Drive directamente desde el navegador. Tienes dos opciones:
+        </p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div style="background:var(--neutral-50);border-radius:8px;padding:16px;border:1px solid var(--neutral-100);">
+            <h3 style="font-size:14px;margin-bottom:8px;">Opción 1: Pegar JSON de Drive</h3>
+            <p style="font-size:12px;color:var(--neutral-700);margin-bottom:10px;">
+              Ejecuta el Apps Script <code>apps-script-sync-pdfs.js</code> (función <code>ejecutarManual</code>) o pega aquí un JSON con formato <code>{"nombre.pdf": "driveId", ...}</code>
+            </p>
+            <textarea id="driveJsonInput" rows="6" style="width:100%;border:1.5px solid var(--neutral-300);border-radius:8px;padding:10px;font:12px monospace;resize:vertical;" placeholder='{"archivo.pdf": "1abc...", "otro.pdf": "2def..."}'></textarea>
+            <button class="btn btn-primary" style="margin-top:10px;" onclick="syncFromJson()">Comparar con Supabase</button>
+          </div>
+          <div style="background:var(--neutral-50);border-radius:8px;padding:16px;border:1px solid var(--neutral-100);">
+            <h3 style="font-size:14px;margin-bottom:8px;">Opción 2: Automático con Apps Script</h3>
+            <p style="font-size:12px;color:var(--neutral-700);margin-bottom:10px;">
+              Configura el Google Apps Script para que sincronice automáticamente cada día:
+            </p>
+            <ol style="font-size:12px;color:var(--neutral-700);line-height:1.8;padding-left:16px;">
+              <li>Ve a <a href="https://script.google.com" target="_blank" style="color:var(--blue-500);font-weight:600;">script.google.com</a></li>
+              <li>Crea un proyecto nuevo</li>
+              <li>Pega el código de <code>apps-script-sync-pdfs.js</code></li>
+              <li>Ejecuta <code>configurarTriggerDiario()</code></li>
+              <li>¡Listo! Correrá cada día a las 7am</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      <div id="syncResultsCard" class="card" style="display:none;">
+        <h3 id="syncResultsTitle">Resultados</h3>
+        <div class="stats-grid" style="margin-bottom:16px;">
+          <div class="stat-card"><div class="num" id="syncDriveCount" style="color:var(--blue-500)">0</div><div class="label">En Drive (JSON)</div></div>
+          <div class="stat-card"><div class="num" id="syncDbCount" style="color:var(--blue-700)">0</div><div class="label">Registrados en Supabase</div></div>
+          <div class="stat-card"><div class="num" id="syncNewCount" style="color:var(--success)">0</div><div class="label">Nuevos por registrar</div></div>
+        </div>
+        <div id="syncNewList"></div>
+        <div id="syncActions" style="display:none;margin-top:14px;">
+          <button class="btn btn-primary" onclick="registerAllNewPdfs()">Registrar todos los nuevos en Supabase</button>
+        </div>
+        <div id="syncLog" style="margin-top:14px;font-size:13px;"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Connection Modal -->
+<div id="connModal" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <h2>Conexión Supabase <button class="modal-close" onclick="closeConnModal()">&times;</button></h2>
+    <div class="form-grid">
+      <div class="field full">
+        <label>Project URL</label>
+        <input type="text" id="cfgUrl" placeholder="https://xxxxx.supabase.co" value="https://lxpqozjylvvqaokfohph.supabase.co">
+      </div>
+      <div class="field full">
+        <label>Service Role Key</label>
+        <input type="password" id="cfgKey" placeholder="eyJhbGciOiJIUzI1NiIs...">
+        <div class="hint">Usa la Service Role key (secreta), no la anon key. Necesaria para escritura.</div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-outline" onclick="testConn()">Test Connection</button>
+      <button class="btn btn-primary" onclick="saveConn()">Guardar y Conectar</button>
+      <span id="connTestResult"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══ State ═══
+let SB_URL = 'https://lxpqozjylvvqaokfohph.supabase.co';
+let SB_KEY = '';
+let connected = false;
+let allTemas = ['Deberes Formales','Renta','ICE','IVA','ISD','Institucional SRI','Fiscalidad Internacional','Transporte','RIMPE','Facturación Electrónica','IRBP','Otros'];
+let selectedTemas = [];
+let sriNewResolutions = [];
+let sriChangedResolutions = [];
+let searchTimeout = null;
+
+// ═══ Init ═══
+(function init() {
+  loadSavedConn();
+  renderTemaChips();
+  if (SB_KEY) tryConnect();
+  else showConnModal();
+})();
+
+function loadSavedConn() {
+  try {
+    var c = JSON.parse(localStorage.getItem('bt_admin_config') || '{}');
+    if (c.url) SB_URL = c.url;
+    if (c.key) SB_KEY = c.key;
+    document.getElementById('cfgUrl').value = SB_URL;
+    document.getElementById('cfgKey').value = SB_KEY;
+  } catch(e) {}
+}
+
+async function tryConnect() {
+  try {
+    var r = await sbGet('resoluciones?select=id&limit=1');
+    connected = true;
+    document.getElementById('connDot').className = 'conn-dot ok';
+    document.getElementById('connDot').title = 'Conectado';
+    loadDashboard();
+  } catch(e) {
+    connected = false;
+    document.getElementById('connDot').className = 'conn-dot off';
+    showConnModal();
+  }
+}
+
+// ═══ Supabase helpers ═══
+function sbHeaders(prefer) {
+  var h = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' };
+  if (prefer) h['Prefer'] = prefer;
+  return h;
+}
+
+async function sbGet(path) {
+  var res = await fetch(SB_URL + '/rest/v1/' + path, { headers: sbHeaders() });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function sbPost(table, data) {
+  var res = await fetch(SB_URL + '/rest/v1/' + table, {
+    method: 'POST', headers: sbHeaders('return=representation'), body: JSON.stringify(data)
+  });
+  if (!res.ok) { var t = await res.text(); throw new Error(t); }
+  return res.json();
+}
+
+async function sbPatch(table, filter, data) {
+  var res = await fetch(SB_URL + '/rest/v1/' + table + '?' + filter, {
+    method: 'PATCH', headers: sbHeaders('return=representation'), body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function sbDelete(table, filter) {
+  var res = await fetch(SB_URL + '/rest/v1/' + table + '?' + filter, {
+    method: 'DELETE', headers: sbHeaders()
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
+
+// ═══ Toast ═══
+function toast(msg, type) {
+  var el = document.createElement('div');
+  el.className = 'toast ' + (type || 'info');
+  el.textContent = msg;
+  document.getElementById('toastContainer').appendChild(el);
+  setTimeout(function() { el.style.opacity = '0'; setTimeout(function() { el.remove(); }, 300); }, 4000);
+}
+
+// ═══ Connection Modal ═══
+function showConnModal() { document.getElementById('connModal').style.display = 'flex'; }
+function closeConnModal() { document.getElementById('connModal').style.display = 'none'; }
+
+async function testConn() {
+  var url = document.getElementById('cfgUrl').value.replace(/\/+$/, '');
+  var key = document.getElementById('cfgKey').value.trim();
+  document.getElementById('connTestResult').innerHTML = '<span class="spinner"></span>';
+  try {
+    var res = await fetch(url + '/rest/v1/resoluciones?select=id&limit=1', {
+      headers: { 'apikey': key, 'Authorization': 'Bearer ' + key }
+    });
+    if (res.ok) {
+      document.getElementById('connTestResult').innerHTML = '<span style="color:var(--success);font-weight:600;">&#10004; Conectado</span>';
+    } else {
+      document.getElementById('connTestResult').innerHTML = '<span style="color:var(--error);font-weight:600;">Error ' + res.status + '</span>';
+    }
+  } catch(e) {
+    document.getElementById('connTestResult').innerHTML = '<span style="color:var(--error);">Error de red</span>';
+  }
+}
+
+function saveConn() {
+  SB_URL = document.getElementById('cfgUrl').value.replace(/\/+$/, '');
+  SB_KEY = document.getElementById('cfgKey').value.trim();
+  localStorage.setItem('bt_admin_config', JSON.stringify({ url: SB_URL, key: SB_KEY }));
+  closeConnModal();
+  tryConnect();
+  toast('Conexión guardada', 'success');
+}
+
+// ═══ Navigation ═══
+function navigate(section) {
+  document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
+  document.getElementById('sec-' + section).classList.add('active');
+  document.querySelectorAll('.sidebar a').forEach(function(a) { a.classList.remove('active'); });
+  document.querySelector('.sidebar a[data-section="' + section + '"]').classList.add('active');
+  if (section === 'dashboard') loadDashboard();
+  if (section === 'add-pdf') loadRecentDrive();
+}
+
+// ═══ Dashboard ═══
+async function loadDashboard() {
+  if (!connected) return;
+  try {
+    var results = await Promise.all([
+      sbGet('resoluciones?select=id,numero,vigente,created_at&order=created_at.desc&limit=1000'),
+      sbGet('drive_files?select=id&limit=1'),
+      sbGet('cdi_convenios?select=id&limit=1')
+    ]);
+    // Also get counts via HEAD requests
+    var resAll = results[0];
+    var total = resAll.length;
+    var vigentes = resAll.filter(function(r) { return r.vigente; }).length;
+    var derogadas = total - vigentes;
+
+    document.getElementById('dTotal').textContent = total;
+    document.getElementById('dVigentes').textContent = vigentes;
+    document.getElementById('dDerogadas').textContent = derogadas;
+
+    // Counts for drive and cdi
+    var driveRes = await fetch(SB_URL + '/rest/v1/drive_files?select=id', { headers: sbHeaders(), method: 'HEAD' });
+    var cdiRes = await fetch(SB_URL + '/rest/v1/cdi_convenios?select=id', { headers: sbHeaders(), method: 'HEAD' });
+    // Fallback: get actual counts
+    var driveData = await sbGet('drive_files?select=id');
+    var cdiData = await sbGet('cdi_convenios?select=id');
+    document.getElementById('dDrive').textContent = driveData.length;
+    document.getElementById('dCdi').textContent = cdiData.length;
+
+    // Recent
+    var recent = resAll.slice(0, 8);
+    var html = '';
+    recent.forEach(function(r) {
+      html += '<li><span><strong>' + esc(r.numero) + '</strong></span><span class="badge-status ' + (r.vigente ? 'badge-vigente' : 'badge-derogada') + '">' + (r.vigente ? 'Vigente' : 'Derogada') + '</span></li>';
+    });
+    document.getElementById('recentList').innerHTML = html || '<li class="empty-state">Sin resoluciones</li>';
+  } catch(e) {
+    console.error(e);
+    toast('Error cargando dashboard: ' + e.message, 'error');
+  }
+}
+
+// ═══ Tema Chips ═══
+function renderTemaChips() {
+  var container = document.getElementById('arTemasChips');
+  container.innerHTML = '';
+  allTemas.forEach(function(t) {
+    var chip = document.createElement('span');
+    chip.className = 'chip' + (selectedTemas.indexOf(t) >= 0 ? ' selected' : '');
+    chip.textContent = t;
+    chip.onclick = function() { toggleTema(t); };
+    container.appendChild(chip);
+  });
+}
+function toggleTema(t) {
+  var idx = selectedTemas.indexOf(t);
+  if (idx >= 0) selectedTemas.splice(idx, 1);
+  else selectedTemas.push(t);
+  renderTemaChips();
+}
+
+// ═══ Auto-extract año ═══
+function autoExtractAnio() {
+  var num = document.getElementById('arNumero').value;
+  var m = num.match(/(\d{2})-\d+$/);
+  if (m) {
+    var yy = parseInt(m[1]);
+    document.getElementById('arAnio').value = (yy < 50 ? 2000 : 1900) + yy;
+  }
+}
+
+// ═══ Guardar Resolución ═══
+async function guardarResolucion() {
+  var numero = document.getElementById('arNumero').value.trim();
+  if (!numero) { toast('El número es obligatorio', 'error'); return; }
+
+  var data = {
+    id: numero,
+    numero: numero,
+    tipo: document.getElementById('arTipo').value,
+    titulo: document.getElementById('arTitulo').value.trim() || null,
+    anio: document.getElementById('arAnio').value.trim() || null,
+    fecha_suscripcion: document.getElementById('arFechaSusc').value || null,
+    fecha_publicacion: document.getElementById('arFechaPub').value || null,
+    registro_oficial: document.getElementById('arRO').value.trim() || null,
+    estado_original: document.getElementById('arEstado').value,
+    vigente: document.getElementById('arVigente').checked,
+    temas: selectedTemas.length > 0 ? selectedTemas : [],
+    palabras_clave: document.getElementById('arPalabras').value.trim() || null,
+    archivo: document.getElementById('arArchivo').value.trim() || null
+  };
+
+  try {
+    await sbPost('resoluciones', data);
+    toast('Resolución ' + numero + ' guardada', 'success');
+    limpiarFormRes();
+  } catch(e) {
+    var msg = e.message;
+    if (msg.indexOf('duplicate') >= 0) toast('Ya existe una resolución con ese número', 'error');
+    else toast('Error: ' + msg, 'error');
+  }
+}
+
+function limpiarFormRes() {
+  ['arNumero','arTitulo','arAnio','arRO','arPalabras','arArchivo'].forEach(function(id) { document.getElementById(id).value = ''; });
+  document.getElementById('arFechaSusc').value = '';
+  document.getElementById('arFechaPub').value = '';
+  document.getElementById('arTipo').value = 'Resolucion';
+  document.getElementById('arEstado').value = 'VIGENTE';
+  document.getElementById('arVigente').checked = true;
+  selectedTemas = [];
+  renderTemaChips();
+}
+
+// ═══ Agregar PDF ═══
+async function agregarPdf() {
+  var cat = document.getElementById('pdfCat').value;
+  var nombre = document.getElementById('pdfNombre').value.trim();
+  var driveId = document.getElementById('pdfDriveId').value.trim();
+  if (!nombre || !driveId) { toast('Nombre y Drive ID son obligatorios', 'error'); return; }
+
+  try {
+    await sbPost('drive_files', { categoria: cat, nombre_archivo: nombre, drive_id: driveId });
+    toast('Mapeo agregado: ' + nombre, 'success');
+    document.getElementById('pdfNombre').value = '';
+    document.getElementById('pdfDriveId').value = '';
+    loadRecentDrive();
+  } catch(e) {
+    if (e.message.indexOf('duplicate') >= 0) toast('Ya existe un mapeo para ese archivo', 'error');
+    else toast('Error: ' + e.message, 'error');
+  }
+}
+
+async function bulkImportPdf() {
+  var cat = document.getElementById('bulkCat').value;
+  var lines = document.getElementById('bulkInput').value.trim().split('\n').filter(function(l) { return l.trim(); });
+  if (!lines.length) { toast('Pega al menos una línea', 'error'); return; }
+
+  var rows = [];
+  var errors = 0;
+  lines.forEach(function(line) {
+    var parts = line.split('|');
+    if (parts.length >= 2) {
+      rows.push({ categoria: cat, nombre_archivo: parts[0].trim(), drive_id: parts[1].trim() });
+    } else { errors++; }
+  });
+
+  if (!rows.length) { toast('No se encontraron líneas válidas (formato: nombre|id)', 'error'); return; }
+
+  try {
+    await sbPost('drive_files', rows);
+    toast(rows.length + ' mapeos importados' + (errors ? ' (' + errors + ' líneas ignoradas)' : ''), 'success');
+    document.getElementById('bulkInput').value = '';
+    loadRecentDrive();
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
+async function loadRecentDrive() {
+  if (!connected) return;
+  try {
+    var data = await sbGet('drive_files?select=*&order=created_at.desc&limit=10');
+    var html = '';
+    data.forEach(function(d) {
+      html += '<tr><td><span class="tag">' + esc(d.categoria) + '</span></td><td>' + esc(d.nombre_archivo) + '</td><td style="font-family:monospace;font-size:11px;">' + esc(d.drive_id) + '</td></tr>';
+    });
+    document.getElementById('recentDriveBody').innerHTML = html || '<tr><td colspan="3" class="empty-state">Sin mapeos</td></tr>';
+  } catch(e) {}
+}
+
+// ═══ Buscar / Editar ═══
+function debounceSearch() {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(doSearch, 400);
+}
+
+async function doSearch() {
+  var q = document.getElementById('searchInput').value.trim();
+  if (!q || q.length < 2) {
+    document.getElementById('searchResults').innerHTML = '<div class="empty-state">Escribe al menos 2 caracteres</div>';
+    return;
+  }
+  if (!connected) { toast('No conectado', 'error'); return; }
+
+  try {
+    var data = await sbGet('resoluciones?select=id,numero,titulo,anio,estado_original,vigente,temas&or=(numero.ilike.*' + encodeURIComponent(q) + '*,titulo.ilike.*' + encodeURIComponent(q) + '*,palabras_clave.ilike.*' + encodeURIComponent(q) + '*)&order=anio.desc&limit=50');
+    if (!data.length) {
+      document.getElementById('searchResults').innerHTML = '<div class="empty-state">Sin resultados para "' + esc(q) + '"</div>';
+      return;
+    }
+    var html = '<div class="table-wrap"><table><thead><tr><th>Número</th><th>Título</th><th>Año</th><th>Estado</th><th>Vigente</th></tr></thead><tbody>';
+    data.forEach(function(r) {
+      var badge = r.vigente ? 'badge-vigente' : (r.estado_original === 'REFORMADA' ? 'badge-reformada' : 'badge-derogada');
+      var label = r.vigente ? 'Vigente' : (r.estado_original || 'No vigente');
+      html += '<tr onclick="openEditModal(\'' + esc(r.id) + '\')">';
+      html += '<td><strong>' + esc(r.numero) + '</strong></td>';
+      html += '<td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(r.titulo || '-') + '</td>';
+      html += '<td>' + esc(r.anio || '-') + '</td>';
+      html += '<td><span class="badge-status ' + badge + '">' + label + '</span></td>';
+      html += '<td>' + (r.vigente ? '&#10004;' : '&#10008;') + '</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+    document.getElementById('searchResults').innerHTML = html;
+  } catch(e) {
+    toast('Error de búsqueda: ' + e.message, 'error');
+  }
+}
+
+async function openEditModal(id) {
+  try {
+    var data = await sbGet('resoluciones?id=eq.' + encodeURIComponent(id));
+    if (!data.length) { toast('No encontrada', 'error'); return; }
+    var r = data[0];
+
+    var temaOptions = allTemas.map(function(t) {
+      var sel = (r.temas || []).indexOf(t) >= 0;
+      return '<span class="chip' + (sel ? ' selected' : '') + '" onclick="this.classList.toggle(\'selected\')">' + t + '</span>';
+    }).join('');
+
+    var html = '<div class="modal-overlay" id="editModal" onclick="if(event.target===this)this.remove()">';
+    html += '<div class="modal">';
+    html += '<h2>Editar: ' + esc(r.numero) + ' <button class="modal-close" onclick="document.getElementById(\'editModal\').remove()">&times;</button></h2>';
+    html += '<div class="form-grid">';
+    html += '<div class="field"><label>Número</label><input type="text" id="edNumero" value="' + esc(r.numero || '') + '" readonly style="background:#f0f0f0;"></div>';
+    html += '<div class="field"><label>Tipo</label><select id="edTipo"><option ' + (r.tipo==='Resolucion'?'selected':'') + '>Resolucion</option><option ' + (r.tipo==='Circular'?'selected':'') + '>Circular</option><option ' + (r.tipo==='Ley'?'selected':'') + '>Ley</option><option ' + (r.tipo==='Reglamento'?'selected':'') + '>Reglamento</option></select></div>';
+    html += '<div class="field full"><label>Título</label><textarea id="edTitulo">' + esc(r.titulo || '') + '</textarea></div>';
+    html += '<div class="field"><label>Año</label><input type="text" id="edAnio" value="' + esc(r.anio || '') + '"></div>';
+    html += '<div class="field"><label>Registro Oficial</label><input type="text" id="edRO" value="' + esc(r.registro_oficial || '') + '"></div>';
+    html += '<div class="field"><label>Fecha suscripción</label><input type="date" id="edFechaSusc" value="' + (r.fecha_suscripcion || '') + '"></div>';
+    html += '<div class="field"><label>Fecha publicación</label><input type="date" id="edFechaPub" value="' + (r.fecha_publicacion || '') + '"></div>';
+    html += '<div class="field"><label>Estado original</label><select id="edEstado"><option ' + (r.estado_original==='VIGENTE'?'selected':'') + '>VIGENTE</option><option ' + (r.estado_original==='DEROGADA'?'selected':'') + '>DEROGADA</option><option ' + (r.estado_original==='REFORMADA'?'selected':'') + '>REFORMADA</option><option ' + (r.estado_original==='SUSTITUIDA'?'selected':'') + '>SUSTITUIDA</option></select></div>';
+    html += '<div class="checkbox-field"><input type="checkbox" id="edVigente" ' + (r.vigente ? 'checked' : '') + '><label for="edVigente">Vigente</label></div>';
+    html += '<div class="field full"><label>Temas</label><div class="chips" id="edTemasChips">' + temaOptions + '</div></div>';
+    html += '<div class="field full"><label>Palabras clave</label><input type="text" id="edPalabras" value="' + esc(r.palabras_clave || '') + '"></div>';
+    html += '<div class="field full"><label>Archivo PDF</label><input type="text" id="edArchivo" value="' + esc(r.archivo || '') + '"></div>';
+    html += '</div>';
+    html += '<div class="btn-row"><button class="btn btn-primary" onclick="saveEdit(\'' + esc(r.id) + '\')">Guardar cambios</button>';
+    html += '<button class="btn btn-danger" onclick="deleteRes(\'' + esc(r.id) + '\')">Eliminar</button></div>';
+    html += '</div></div>';
+
+    document.body.insertAdjacentHTML('beforeend', html);
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
+async function saveEdit(id) {
+  var temas = [];
+  document.querySelectorAll('#edTemasChips .chip.selected').forEach(function(c) { temas.push(c.textContent); });
+
+  var data = {
+    tipo: document.getElementById('edTipo').value,
+    titulo: document.getElementById('edTitulo').value.trim() || null,
+    anio: document.getElementById('edAnio').value.trim() || null,
+    registro_oficial: document.getElementById('edRO').value.trim() || null,
+    fecha_suscripcion: document.getElementById('edFechaSusc').value || null,
+    fecha_publicacion: document.getElementById('edFechaPub').value || null,
+    estado_original: document.getElementById('edEstado').value,
+    vigente: document.getElementById('edVigente').checked,
+    temas: temas,
+    palabras_clave: document.getElementById('edPalabras').value.trim() || null,
+    archivo: document.getElementById('edArchivo').value.trim() || null
+  };
+
+  try {
+    await sbPatch('resoluciones', 'id=eq.' + encodeURIComponent(id), data);
+    toast('Resolución actualizada', 'success');
+    document.getElementById('editModal').remove();
+    doSearch();
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
+async function deleteRes(id) {
+  if (!confirm('¿Estás seguro de eliminar ' + id + '? Esta acción no se puede deshacer.')) return;
+  try {
+    await sbDelete('resoluciones', 'id=eq.' + encodeURIComponent(id));
+    toast('Resolución eliminada', 'success');
+    document.getElementById('editModal').remove();
+    doSearch();
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
+// ═══ Import Excel SRI ═══
+async function parseSriExcel(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  document.getElementById('sriStatus').innerHTML = '<span class="spinner"></span> Procesando Excel...';
+
+  var reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      var data = new Uint8Array(e.target.result);
+      var workbook = XLSX.read(data, { type: 'array' });
+
+      // Extract all resolutions from all sheets
+      var excelRes = [];
+      workbook.SheetNames.forEach(function(name) {
+        if (name.indexOf('GR') === 0) return; // skip chart sheets
+        var sheet = workbook.Sheets[name];
+        var json = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+        json.forEach(function(row) {
+          // Find the numero column
+          var numero = row['NÚMERO DE RESOLUCIÓN'] || row['NUMERO DE RESOLUCION'] || row['NÚMERO DE RESOLUCIÓN '] || '';
+          numero = String(numero).trim();
+          if (!numero || numero === 'NÚMERO DE RESOLUCIÓN') return;
+
+          var estado = row['ESTADO'] || row['ESTADO '] || '';
+          estado = String(estado).trim().toUpperCase();
+          var palabras = row['PALABRAS CLAVES'] || row['PALABRAS CLAVES '] || '';
+          var nombre = row['NOMBRE'] || '';
+
+          excelRes.push({
+            numero: numero,
+            estado: estado,
+            palabras: String(palabras).trim(),
+            nombre: String(nombre).trim(),
+            sheet: name
+          });
+        });
+      });
+
+      document.getElementById('sriExcelCount').textContent = excelRes.length;
+      document.getElementById('sriStatus').innerHTML = '<span style="color:var(--success);font-weight:600;">&#10004; ' + excelRes.length + ' resoluciones encontradas en el Excel</span>';
+
+      // Compare with DB
+      if (!connected) { toast('Conecta primero a Supabase', 'error'); return; }
+
+      var dbData = await sbGet('resoluciones?select=id,numero,estado_original,vigente&limit=2000');
+      document.getElementById('sriDbCount').textContent = dbData.length;
+
+      var dbMap = {};
+      dbData.forEach(function(r) { dbMap[r.numero] = r; });
+
+      sriNewResolutions = [];
+      sriChangedResolutions = [];
+
+      excelRes.forEach(function(er) {
+        var dbR = dbMap[er.numero];
+        if (!dbR) {
+          sriNewResolutions.push(er);
+        } else {
+          var dbEstado = (dbR.estado_original || '').toUpperCase();
+          if (er.estado && er.estado !== dbEstado) {
+            sriChangedResolutions.push({ numero: er.numero, dbEstado: dbEstado, excelEstado: er.estado, dbVigente: dbR.vigente });
+          }
+        }
+      });
+
+      document.getElementById('sriNewCount').textContent = sriNewResolutions.length;
+      document.getElementById('sriChangedCount').textContent = sriChangedResolutions.length;
+      document.getElementById('sriResultsCard').style.display = 'block';
+
+      // Render new
+      if (sriNewResolutions.length) {
+        document.getElementById('sriNewSection').style.display = 'block';
+        var html = '';
+        sriNewResolutions.forEach(function(r, i) {
+          html += '<tr class="compare-new"><td>' + esc(r.numero) + '</td><td>' + esc(r.estado) + '</td><td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;">' + esc(r.palabras || r.nombre) + '</td>';
+          html += '<td><button class="btn btn-sm btn-primary" onclick="addSingleNew(' + i + ',this)">Agregar</button></td></tr>';
+        });
+        document.getElementById('sriNewBody').innerHTML = html;
+      }
+
+      // Render changed
+      if (sriChangedResolutions.length) {
+        document.getElementById('sriChangedSection').style.display = 'block';
+        var html2 = '';
+        sriChangedResolutions.forEach(function(r, i) {
+          html2 += '<tr class="compare-changed"><td>' + esc(r.numero) + '</td><td>' + esc(r.dbEstado) + '</td><td><strong>' + esc(r.excelEstado) + '</strong></td>';
+          html2 += '<td><button class="btn btn-sm btn-outline" onclick="applySingleChange(' + i + ',this)">Aplicar</button></td></tr>';
+        });
+        document.getElementById('sriChangedBody').innerHTML = html2;
+      }
+
+    } catch(err) {
+      document.getElementById('sriStatus').innerHTML = '<span style="color:var(--error);">Error procesando Excel: ' + err.message + '</span>';
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function addSingleNew(idx, btn) {
+  var r = sriNewResolutions[idx];
+  var m = r.numero.match(/(\d{2})-\d+$/);
+  var anio = m ? ((parseInt(m[1]) < 50 ? 2000 : 1900) + parseInt(m[1])).toString() : null;
+
+  var data = {
+    id: r.numero,
+    numero: r.numero,
+    tipo: 'Resolucion',
+    anio: anio,
+    estado_original: r.estado || 'VIGENTE',
+    vigente: !r.estado || r.estado === 'VIGENTE',
+    palabras_clave: r.palabras || null,
+    titulo: r.nombre || null
+  };
+
+  try {
+    await sbPost('resoluciones', data);
+    btn.textContent = '✓ Agregada';
+    btn.disabled = true;
+    btn.className = 'btn btn-sm btn-outline';
+    toast(r.numero + ' agregada', 'success');
+  } catch(e) {
+    if (e.message.indexOf('duplicate') >= 0) { btn.textContent = 'Ya existe'; btn.disabled = true; }
+    else toast('Error: ' + e.message, 'error');
+  }
+}
+
+async function applySingleChange(idx, btn) {
+  var r = sriChangedResolutions[idx];
+  var vigente = r.excelEstado === 'VIGENTE';
+  try {
+    await sbPatch('resoluciones', 'id=eq.' + encodeURIComponent(r.numero), { estado_original: r.excelEstado, vigente: vigente });
+    btn.textContent = '✓ Aplicado';
+    btn.disabled = true;
+    toast(r.numero + ' actualizada a ' + r.excelEstado, 'success');
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
+async function addAllNew() {
+  for (var i = 0; i < sriNewResolutions.length; i++) {
+    var btn = document.querySelectorAll('#sriNewBody button')[i];
+    if (btn && !btn.disabled) await addSingleNew(i, btn);
+  }
+  toast('Todas las nuevas resoluciones procesadas', 'success');
+}
+
+async function applyAllChanges() {
+  for (var i = 0; i < sriChangedResolutions.length; i++) {
+    var btn = document.querySelectorAll('#sriChangedBody button')[i];
+    if (btn && !btn.disabled) await applySingleChange(i, btn);
+  }
+  toast('Todos los cambios aplicados', 'success');
+}
+
+// ═══ Sync Drive PDFs ═══
+var syncNewPdfs = []; // [{nombre, driveId, categoria}]
+
+function clasificarPDF(nombre) {
+  var upper = nombre.toUpperCase();
+  if (upper.indexOf('DGECCGC') > -1 || upper.indexOf('NAC-') > -1 || upper.indexOf('DGERCGC') > -1) return 'normativa';
+  if (upper.indexOf('CONSULTA') > -1 || upper.indexOf('ABSOLUCION') > -1 || upper.indexOf('EXTRACTO') > -1 || upper.indexOf('ISEM') > -1 || upper.indexOf('IISEM') > -1) return 'consulta';
+  if (upper.indexOf('CDI') > -1 || upper.indexOf('CONVENIO') > -1 || upper.indexOf('DOBLE') > -1) return 'fiscalidad';
+  return 'normativa';
+}
+
+async function syncFromJson() {
+  var input = document.getElementById('driveJsonInput').value.trim();
+  if (!input) { toast('Pega el JSON de archivos de Drive', 'error'); return; }
+
+  var driveMap;
+  try { driveMap = JSON.parse(input); } catch(e) { toast('JSON inválido: ' + e.message, 'error'); return; }
+
+  var driveNames = Object.keys(driveMap);
+  var pdfNames = driveNames.filter(function(n) { return n.toLowerCase().endsWith('.pdf'); });
+
+  // Get all registered files from Supabase
+  toast('Consultando Supabase...', 'info');
+  var registered = {};
+  try {
+    var offset = 0;
+    while (true) {
+      var data = await sbGet('drive_files?select=nombre_archivo&offset=' + offset + '&limit=1000');
+      data.forEach(function(row) { registered[row.nombre_archivo] = true; });
+      if (data.length < 1000) break;
+      offset += 1000;
+    }
+  } catch(e) { toast('Error consultando Supabase: ' + e.message, 'error'); return; }
+
+  // Find new PDFs
+  syncNewPdfs = [];
+  pdfNames.forEach(function(name) {
+    if (!registered[name]) {
+      syncNewPdfs.push({ nombre: name, driveId: driveMap[name], categoria: clasificarPDF(name) });
+    }
+  });
+
+  // Display results
+  document.getElementById('syncResultsCard').style.display = 'block';
+  document.getElementById('syncDriveCount').textContent = pdfNames.length;
+  document.getElementById('syncDbCount').textContent = Object.keys(registered).length;
+  document.getElementById('syncNewCount').textContent = syncNewPdfs.length;
+
+  var listEl = document.getElementById('syncNewList');
+  if (syncNewPdfs.length === 0) {
+    listEl.innerHTML = '<p style="color:var(--success);font-weight:600;font-size:14px;">Todo al día — no hay PDFs nuevos por registrar.</p>';
+    document.getElementById('syncActions').style.display = 'none';
+  } else {
+    var html = '<div class="table-wrap"><table><thead><tr><th>Archivo</th><th>Categoría</th><th>Drive ID</th></tr></thead><tbody>';
+    syncNewPdfs.forEach(function(pdf) {
+      html += '<tr><td>' + esc(pdf.nombre) + '</td><td>' +
+        '<select onchange="updateSyncCat(this,\'' + esc(pdf.nombre).replace(/'/g,"\\'") + '\')" style="font-size:12px;padding:4px 8px;border-radius:6px;border:1px solid var(--neutral-300);">' +
+        '<option value="normativa"' + (pdf.categoria==='normativa'?' selected':'') + '>Normativa</option>' +
+        '<option value="consulta"' + (pdf.categoria==='consulta'?' selected':'') + '>Consulta</option>' +
+        '<option value="fiscalidad"' + (pdf.categoria==='fiscalidad'?' selected':'') + '>Fiscalidad</option>' +
+        '</select></td>' +
+        '<td style="font-size:11px;color:var(--neutral-500);max-width:200px;overflow:hidden;text-overflow:ellipsis;">' + pdf.driveId.substring(0,20) + '...</td></tr>';
+    });
+    html += '</tbody></table></div>';
+    listEl.innerHTML = html;
+    document.getElementById('syncActions').style.display = 'block';
+  }
+
+  toast('Comparación completa: ' + syncNewPdfs.length + ' nuevos encontrados', syncNewPdfs.length > 0 ? 'success' : 'info');
+}
+
+function updateSyncCat(select, nombre) {
+  syncNewPdfs.forEach(function(pdf) {
+    if (pdf.nombre === nombre) pdf.categoria = select.value;
+  });
+}
+
+async function registerAllNewPdfs() {
+  if (syncNewPdfs.length === 0) return;
+  var logEl = document.getElementById('syncLog');
+  logEl.innerHTML = '<p style="color:var(--blue-500);font-weight:600;">Registrando ' + syncNewPdfs.length + ' PDFs...</p>';
+
+  var ok = 0, errors = 0;
+  for (var i = 0; i < syncNewPdfs.length; i++) {
+    var pdf = syncNewPdfs[i];
+    try {
+      await sbPost('drive_files', {
+        nombre_archivo: pdf.nombre,
+        drive_id: pdf.driveId,
+        categoria: pdf.categoria
+      });
+      ok++;
+      logEl.innerHTML = '<p style="color:var(--blue-500);">Progreso: ' + ok + '/' + syncNewPdfs.length + '</p>';
+    } catch(e) {
+      errors++;
+      logEl.innerHTML += '<p style="color:var(--error);font-size:12px;">Error: ' + pdf.nombre + ' — ' + e.message + '</p>';
+    }
+  }
+
+  logEl.innerHTML = '<p style="color:var(--success);font-weight:600;font-size:14px;">Registrados: ' + ok + ' de ' + syncNewPdfs.length + (errors > 0 ? ' (' + errors + ' errores)' : '') + '</p>';
+  document.getElementById('syncActions').style.display = 'none';
+
+  // Refresh dashboard stats
+  loadStats();
+  toast(ok + ' PDFs registrados exitosamente', 'success');
+}
+
+// ═══ Helpers ═══
+function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+</script>
+</body>
+</html>

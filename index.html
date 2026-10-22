@@ -753,6 +753,13 @@ function showView(view) {
     n.classList.toggle('active', n.dataset.view === view);
   });
   document.getElementById('sidebar').classList.remove('open');
+
+  // Ocultar barra de búsqueda en vistas que no la necesitan
+  var searchBar = document.querySelector('.search-bar');
+  if (searchBar) {
+    searchBar.style.display = (view === 'asistente' || view === 'fiscalidad' || view === 'consultas') ? 'none' : '';
+  }
+
   var c = document.getElementById('content');
   switch(view) {
     case 'dashboard': renderDashboard(c); break;
@@ -1017,8 +1024,8 @@ function renderFiscalidad(c) {
 }
 
 // ── Asistente IA ──
-const GEMINI_KEY = 'AQ.Ab8RN6IS441gZ5azZzREXtBD4RE8iM9Egu3iu_mzT45n7nfWVQ';
-const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + GEMINI_KEY;
+const GEMINI_KEY = 'AQ.Ab8RN6Jh4Xp9XK8BgurLp9xQFQUIJ_C4aXjqfYJRNhttKFZJRQ';
+const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + GEMINI_KEY;
 let chatHistory = [];
 
 function renderAsistente(c) {
