@@ -551,7 +551,7 @@ select.filter-select:focus { outline: none; border-color: var(--green); box-shad
         Darth Vader
       </div>
     </div>
-    <div class="sidebar-footer">v4.3 — Supabase + Groq AI</div>
+    <div class="sidebar-footer">v4.4 — Supabase + Groq AI</div>
   </nav>
 
   <!-- Main Content -->
@@ -1306,7 +1306,7 @@ function searchConsultas(query) {
 }
 
 function buildContext(resoluciones, query) {
-  var ctx = 'Asistente tributario Ecuador/SRI para Kushki (agregador de pagos). Responde SOLO con la info proporcionada. Cita numeros de resolucion y articulos. Extrae porcentajes, casilleros y plazos concretos. Responde en espanol.\n\n';
+  var ctx = '/no_think\nAsistente tributario Ecuador/SRI para Kushki (agregador de pagos). Responde SOLO con la info proporcionada. Cita numeros de resolucion y articulos. Extrae porcentajes, casilleros y plazos concretos. Responde siempre en espanol. No uses modo de razonamiento interno.\n\n';
 
   // Normativa (resoluciones, circulares, leyes, reglamentos, código)
   var catLabels = { circulares: 'Circular', codigo: 'Codigo Tributario', leyes: 'Ley', reglamentos: 'Reglamento', resoluciones: 'Resolucion' };
@@ -1363,7 +1363,7 @@ function buildContext(resoluciones, query) {
 
 async function callGemini(context, query) {
   var body = {
-    model: 'openai/gpt-oss-20b',
+    model: 'qwen/qwen3.8-27b',
     messages: [
       { role: 'system', content: context },
       { role: 'user', content: query }
@@ -1405,8 +1405,13 @@ async function callGemini(context, query) {
   var data = await res.json();
   if (data.choices && data.choices[0] && data.choices[0].message) {
     var msg = data.choices[0].message;
-    // Some models put output in 'content', reasoning models put it in 'reasoning'
-    var answer = msg.content || msg.reasoning || '';
+    // Use content only (not reasoning field which is internal thinking)
+    var answer = (msg.content || '').trim();
+    // If content is empty but reasoning exists, extract a summary
+    if (!answer && msg.reasoning) {
+      console.warn('Model returned reasoning but no content');
+      answer = 'No se pudo generar una respuesta estructurada. Intenta reformular tu pregunta.';
+    }
     if (answer) return answer;
   }
   console.error('Groq empty response:', JSON.stringify(data).substring(0, 500));
