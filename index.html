@@ -1156,7 +1156,26 @@ async function sendChat() {
 }
 
 async function searchRelevant(query) {
-  var words = query.toLowerCase().split(/\s+/).filter(function(w) { return w.length > 2; });
+  var words = query.toLowerCase().replace(/[¿?¡!,\.]/g, '').split(/\s+/).filter(function(w) { return w.length > 2; });
+  // Simple Spanish stemming: generate stems by removing common suffixes
+  var stems = [];
+  words.forEach(function(w) {
+    stems.push(w);
+    if (w.length > 5) {
+      // Remove common plural/suffix: -es, -s, -iones, -ción, -nes
+      if (w.endsWith('iones')) stems.push(w.slice(0, -5));
+      else if (w.endsWith('ción')) stems.push(w.slice(0, -4));
+      else if (w.endsWith('dores')) stems.push(w.slice(0, -5));
+      else if (w.endsWith('dor')) stems.push(w.slice(0, -3));
+      else if (w.endsWith('es')) stems.push(w.slice(0, -2));
+      else if (w.endsWith('s')) stems.push(w.slice(0, -1));
+      // Also add first 6 chars as rough stem
+      if (w.length > 7) stems.push(w.substring(0, Math.min(w.length - 2, 7)));
+    }
+  });
+  // Deduplicate stems
+  stems = stems.filter(function(s, i) { return s.length > 2 && stems.indexOf(s) === i; });
+
   var resultMap = {}; // id -> {res, score}
 
   function addResult(r, score) {
@@ -1183,28 +1202,27 @@ async function searchRelevant(query) {
     }
   } catch(e) { console.warn('FTS error:', e); }
 
-  // 2) Local keyword search — score by number of matching words
+  // 2) Local keyword search — score by number of matching stems
   allData.forEach(function(r) {
     var haystack = [r.numero, r.titulo, r.palabras_clave, r.estado_original].concat(r.temas||[]).join(' ').toLowerCase();
+    var tituloHay = ((r.titulo||'') + ' ' + (r.palabras_clave||'')).toLowerCase();
     var matchCount = 0;
     var tituloMatch = 0;
-    words.forEach(function(w) {
-      if (haystack.indexOf(w) > -1) matchCount++;
-      // Extra score if word matches in titulo or palabras_clave (most relevant)
-      var tituloHay = ((r.titulo||'') + ' ' + (r.palabras_clave||'')).toLowerCase();
-      if (tituloHay.indexOf(w) > -1) tituloMatch++;
+    stems.forEach(function(s) {
+      if (haystack.indexOf(s) > -1) matchCount++;
+      if (tituloHay.indexOf(s) > -1) tituloMatch++;
     });
     if (matchCount > 0) {
       addResult(r, matchCount * 2 + tituloMatch * 3);
     }
   });
 
-  // 3) Search articles by keyword for content matches
+  // 3) Search articles by keyword for content matches (use stems for better matching)
   try {
-    var artWords = query.split(/\s+/).filter(function(w) { return w.length > 4; });
+    var artStems = stems.filter(function(s) { return s.length > 4; });
     var allMatchedArts = [];
-    for (var wi = 0; wi < Math.min(artWords.length, 2); wi++) {
-      var artSearchUrl = SUPABASE_URL + '/rest/v1/articulos?contenido=ilike.' + encodeURIComponent('%' + artWords[wi] + '%') + '&limit=10&select=resolucion_id,numero,titulo,contenido';
+    for (var wi = 0; wi < Math.min(artStems.length, 3); wi++) {
+      var artSearchUrl = SUPABASE_URL + '/rest/v1/articulos?contenido=ilike.' + encodeURIComponent('%' + artStems[wi] + '%') + '&limit=10&select=resolucion_id,numero,titulo,contenido';
       var artSearchRes = await fetch(artSearchUrl, {
         headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Accept': 'application/json' }
       });
@@ -1256,6 +1274,7 @@ async function searchRelevant(query) {
     } catch(e) { console.warn('Articles fetch error:', e); }
   }
 
+  console.log('Search stems:', stems);
   console.log('Search results ranked:', results.map(function(r,i) { return (i+1)+'. '+r.numero+' (score:'+resultMap[r.id].score+')'; }));
   return results;
 }
